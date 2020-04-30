@@ -49,14 +49,12 @@ void setup() {
 #ifdef DEBUG
   delay(2000);
 #endif
-
   // Start Boot
-  Serial.println("");
-  Serial.println("");
-  Serial.print("Booting... Compiled: ");
-  Serial.println(__TIMESTAMP__);
-
-  // initialize CC1101 with default settings
+  Serial.println(F("> "));
+  Serial.println(F("> "));
+  Serial.print(F("> Booting... Compiled: "));
+  Serial.println(F(__TIMESTAMP__));
+  // Start CC1101
   Serial.print(F("[CC1101] Initializing ... "));
   //int state = cc.begin();
   int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
@@ -181,6 +179,12 @@ void loop() {
   str += ",V1:";
   str += int(vcc);
   str += ",E:";
+
+  if (str.length() > 60){
+    Serial.println("> String too long");
+    sleepDeep(0);
+  }
+
   // max length is 62 because of Arduino String last byte 00
   // but 62 not good better use 61
   // String length here to 60, thus packet length 61
@@ -267,5 +271,4 @@ void printHex(uint8_t num) {
   char hexCar[2];
   sprintf(hexCar, "%02X", num);
   Serial.print(hexCar);
-  //Serial.print(" ");
 }
