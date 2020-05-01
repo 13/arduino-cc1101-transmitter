@@ -119,17 +119,16 @@ void loop() {
     str += "0";
   }
 
-  Serial.println(F("[CC1101] Transmitting packet... "));
+  Serial.print(F("[CC1101] Transmitting packet... "));
   // String to byte +1 string nul terminator 00 and overwrite 
   byte byteArr[str.length()+1];
   str.getBytes(byteArr,sizeof(byteArr));
   byteArr[sizeof(byteArr)/sizeof(byteArr[0])-1] = '0';
-  Serial.print("Packet Length: ");
-  Serial.println(sizeof(byteArr)/sizeof(byteArr[0])); // +1 
+  //Serial.print("Packet Length: ");
+  //Serial.println(sizeof(byteArr)/sizeof(byteArr[0])); // +1 
   int state = cc.transmit(byteArr,sizeof(byteArr)/sizeof(byteArr[0]));
 
   if (state == ERR_NONE) {
-    Serial.print(F("[CC1101] Transmitting packet "));
     Serial.println(F("OK"));
 	  Serial.println(str);
     for(uint8_t i=0; i<sizeof(byteArr); i++){
