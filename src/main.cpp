@@ -8,22 +8,12 @@
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
 
-#define ENABLE_BYTE
-//#define ENABLE_NODE_ADDRESS
-//#define ENABLE_ENCODING
-//#define ENABLE_SYNC_WORD
-//#define DISABLE_SYNC_WORD_FILTERING
-//#define DISABLE_CRC
 #define DEBUG
 
 // sensors
 #define SENSOR_PIN 3
 
 // CC1101
-// CS pin:    10
-// GDO0 pin:  2
-// RST pin:   unused
-// GDO2 pin:  3 (optional)
 CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 
 // DS18B20
@@ -31,14 +21,12 @@ OneWire oneWire(SENSOR_PIN);
 DallasTemperature sensors(&oneWire);
 // BMP280
 Adafruit_BMP280 bmp;
-
 // voltage
 VoltageReference vRef;
 
 // counter
 uint16_t msgCounter = 1;
 
-// fix platformio
 String getUniqueID();
 void sleepDeep(uint8_t t);
 void printHex(uint8_t num);
@@ -47,7 +35,7 @@ void setup() {
   Serial.begin(9600);
   delay(10);
 #ifdef DEBUG
-  delay(2000);
+  delay(20);
 #endif
   // Start Boot
   Serial.println(F("> "));
@@ -55,77 +43,16 @@ void setup() {
   Serial.print(F("> Booting... Compiled: "));
   Serial.println(F(__TIMESTAMP__));
   // Start CC1101
-  Serial.print(F("[CC1101] Initializing ... "));
-  //int state = cc.begin();
+  Serial.print(F("[CC1101] Initializing... "));
   int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
-  //int state = cc.begin(868.325, 17.240, 48.0, 325.0, 0, 4);
   if (state == ERR_NONE) {
     Serial.println(F("OK"));
   } else {
     Serial.print(F("ERR "));
     Serial.println(state);
-    while (true);
+    sleepDeep(5);
   }
-#ifdef ENABLE_ENCODING
-  // set encoding 
-  Serial.print("> [CC1101] Setting Encoding ... ");
-  state = cc.setEncoding(0);
-  if (state == ERR_NONE) {
-    Serial.println("OK");
-  } else {
-    Serial.print("ERR ");
-    Serial.println(state);
-    while (true);
-  }
-#endif
-#ifdef ENABLE_NODE_ADDRESS
-  // set node address
-  Serial.print(F("[CC1101] Setting Node Address ... "));
-  state = cc.setNodeAddress(0x22,0);
-  if (state == ERR_NONE) {
-    Serial.println(F("OK"));
-  } else {
-    Serial.print(F("ERR "));
-    Serial.println(state);
-    while (true);
-  }
-#endif
-#ifdef ENABLE_SYNC_WORD 
-  // 2 bytes can be set as sync word
-  Serial.print(F("[CC1101] Setting Sync Word ... "));
-  state = cc.setSyncWord(0xd4, 0x2d);
-  if (state == ERR_NONE) {
-    Serial.println(F("OK"));
-  } else {
-    Serial.print(F("ERR "));
-    Serial.println(state);
-    while (true);
-  }
-#endif
-#ifdef DISABLE_SYNC_WORD_FILTERING 
-  // disable sync word filtering
-  Serial.print("> [CC1101] Disable Sync Word Filtering ... ");
-  state = cc.disableSyncWordFiltering();
-  if (state == ERR_NONE) {
-    Serial.println("OK");
-  } else {
-    Serial.print("ERR ");
-    Serial.println(state);
-    while (true);
-  }
-#endif
-#ifdef DISABLE_CRC 
-  // disable crc 
-  Serial.print(F("[CC1101] Disabling CRC ... "));
-  state = cc.setCrcFiltering(false);
-  if (state == ERR_NONE) {
-    Serial.println(F("OK"));
-  } else {
-    Serial.print(F("ERR "));
-    Serial.println(state);
-    while (true);
-  }
-#endif
+
   // DS18B20
   sensors.begin();
   bmp.begin(0x76,0x60); // fix GY-B11 module
@@ -157,7 +84,7 @@ void loop() {
   Serial.print("VCC: ");
   Serial.print(vcc);
 
-  // prepare msg
+  // prepare msg string
   //long randNum = random(0,9);
   String str = "M,I:";
   str += msgCounter;
@@ -181,8 +108,8 @@ void loop() {
   str += ",E:";
 
   if (str.length() > 60){
-    Serial.println("> String too long");
-    sleepDeep(0);
+    Serial.println(F("> String too long"));
+    sleepDeep(1);
   }
 
   // max length is 62 because of Arduino String last byte 00
@@ -192,8 +119,7 @@ void loop() {
     str += "0";
   }
 
-  Serial.println(F("[CC1101] Transmitting packet ... "));
-#ifdef ENABLE_BYTE
+  Serial.println(F("[CC1101] Transmitting packet... "));
   // String to byte +1 string nul terminator 00 and overwrite 
   byte byteArr[str.length()+1];
   str.getBytes(byteArr,sizeof(byteArr));
@@ -201,20 +127,15 @@ void loop() {
   Serial.print("Packet Length: ");
   Serial.println(sizeof(byteArr)/sizeof(byteArr[0])); // +1 
   int state = cc.transmit(byteArr,sizeof(byteArr)/sizeof(byteArr[0]));
-#else
-  int state = cc.transmit(str);
-#endif
 
   if (state == ERR_NONE) {
     Serial.print(F("[CC1101] Transmitting packet "));
     Serial.println(F("OK"));
 	  Serial.println(str);
-#ifdef ENABLE_BYTE
     for(uint8_t i=0; i<sizeof(byteArr); i++){
       printHex(byteArr[i]);
     }
     Serial.println("");
-#endif
   } else if (state == ERR_PACKET_TOO_LONG) {
     // the supplied packet was longer than 64 bytes
     Serial.println(F("ERR: too long!"));
@@ -227,6 +148,7 @@ void loop() {
   msgCounter++;
 }
 
+// Last 4 digits of ChipID
 String getUniqueID(){
   String uid = "";
 	for (size_t i = 7; i < UniqueIDsize; i++){
@@ -267,6 +189,7 @@ void sleepDeep(uint8_t t) {
       LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
   }
 }
+
 void printHex(uint8_t num) {
   char hexCar[2];
   sprintf(hexCar, "%02X", num);
