@@ -11,6 +11,7 @@
 #define DEBUG
 
 // sensors
+#define DS_LONG 2             // deepsleep min
 #define SENSOR_PIN 3
 
 // CC1101
@@ -50,7 +51,7 @@ void setup() {
   } else {
     Serial.print(F("ERR "));
     Serial.println(state);
-    sleepDeep(5);
+    sleepDeep(1);
   }
 
   // DS18B20
@@ -143,7 +144,7 @@ void loop() {
     Serial.print(F("ERR, code "));
     Serial.println(state);
   }
-  sleepDeep(255);
+  sleepDeep(DS_LONG);
   msgCounter++;
 }
 
