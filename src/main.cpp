@@ -1,29 +1,27 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 #include <RadioLib.h>
 #include <LowPower.h>
 #include <ArduinoUniqueID.h>
 #include <VoltageReference.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <Wire.h>
-#include <Adafruit_BMP280.h>
+#include <Adafruit_Si7021.h>
 
 #define DEBUG
 
 // sensors
-#define DS_LONG 2             // deepsleep min
-#define SENSOR_PIN 3
+#define SENSOR_TYPE     "si7021"
+#define SENSOR_PIN_1    0 // sda
+#define SENSOR_PIN_2    2 // sdc
+#define DS_LONG         2 // deepsleep min
 
 // CC1101
 CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 
-// DS18B20
-OneWire oneWire(SENSOR_PIN);
-DallasTemperature sensors(&oneWire);
-// BMP280
-Adafruit_BMP280 bmp;
 // voltage
 VoltageReference vRef;
+
+// Si7021
+Adafruit_Si7021 si = Adafruit_Si7021();
 
 // counter
 uint16_t msgCounter = 1;
@@ -53,34 +51,28 @@ void setup() {
     Serial.println(state);
     sleepDeep(1);
   }
-
-  // DS18B20
-  sensors.begin();
-  bmp.begin(0x76,0x60); // fix GY-B11 module
   // voltage
   vRef.begin();
+  // Si7021
+  si.begin();
+  /*if (!si.begin()){
+    Serial.println("Did not find Si7021 sensor!");
+    sleepDeep(1);
+  }*/
 }
 
 void loop() {
-  sensors.requestTemperatures();
-  float temperature = sensors.getTempCByIndex(0);
-  if (temperature != DEVICE_DISCONNECTED_C) {
-    Serial.print("DS18B20: ");
+  float temperature = si.readTemperature(); 
+  float humidity = si.readHumidity();
+  if (!isnan(temperature)) {
+    Serial.print(SENSOR_TYPE);
+    Serial.print(": ");
     Serial.print(temperature);
-    Serial.println("C");
-  }
-  float bmp280_temperature = bmp.readTemperature();
-  float bmp280_pressure = bmp.readPressure();
-  float bmp280_altitude = bmp.readAltitude(1013.25);
-  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
-    Serial.print("BMP280: ");
-    Serial.print(bmp280_temperature);
     Serial.print("C, ");
-    Serial.print(bmp280_pressure);
-    Serial.print("Pa, ");
-    Serial.print(bmp280_altitude);
-    Serial.println("m");
+    Serial.print(humidity);
+    Serial.println("%, ");
   }
+
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
   Serial.print(vcc);
@@ -92,17 +84,11 @@ void loop() {
   //str += randNum;
   str += ",N:";
   str += getUniqueID();
-  if (temperature != DEVICE_DISCONNECTED_C) {
+  if (!isnan(temperature)) {
     str += ",T1:";
     str += int(round(temperature*10));
-  }
-  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
-    str += ",T2:";
-    str += int(round(bmp280_temperature*10));
-    str += ",P1:";
-    str += int(round(bmp280_pressure)/10);
-    str += ",A1:";
-    str += int(round(bmp280_altitude));
+    str += ",H1:";
+    str += int(round(humidity*10));
   }
   str += ",V1:";
   str += int(vcc);
@@ -150,6 +136,10 @@ void loop() {
 
 // Last 4 digits of ChipID
 String getUniqueID(){
+//#ifdef DEBUG
+//	Serial.println();
+//  UniqueIDdump(Serial);
+//#endif
   String uid = "";
 	for (size_t i = 7; i < UniqueIDsize; i++){
 		if (UniqueID[i] < 0x10){
@@ -158,6 +148,22 @@ String getUniqueID(){
     uid += String(UniqueID[i],HEX);
 	}
 	Serial.println();
+  // read EEPROM serial number
+  if (uid == "ffff"){
+    int address = 13;
+    int serialNumber;
+    if (EEPROM.read(address) != 255){
+      EEPROM.get(address, serialNumber);
+      uid = serialNumber;
+	    Serial.print("EEPROM SN: ");
+    } else {
+	    Serial.print("EEPROM SN: ERROR EMPTY!");
+      uid = "0000";
+    }
+  } else {
+	  Serial.print("CHIP SN: ");
+  }
+	Serial.println(uid);
 	return uid;
 }
 
