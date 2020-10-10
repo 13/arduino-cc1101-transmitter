@@ -4,12 +4,12 @@
 #include <LowPower.h>
 #include <ArduinoUniqueID.h>
 #include <VoltageReference.h>
-#include <Adafruit_Si7021.h>
+#include <Adafruit_BME680.h>
 
 #define DEBUG
 
 // sensors
-#define SENSOR_TYPE     "si7021"
+#define SENSOR_TYPE     "bme680"
 #define SENSOR_PIN_1    0 // sda
 #define SENSOR_PIN_2    2 // sdc
 #define DS_LONG         2 // deepsleep min
@@ -20,8 +20,9 @@ CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 // voltage
 VoltageReference vRef;
 
-// Si7021
-Adafruit_Si7021 si = Adafruit_Si7021();
+// bme680
+Adafruit_BME680 bme680 = Adafruit_BME680();
+float SEALEVELPRESSURE_HPA = 1013.25;
 
 // counter
 uint16_t msgCounter = 1;
@@ -53,24 +54,42 @@ void setup() {
   }
   // voltage
   vRef.begin();
-  // Si7021
-  si.begin();
-  /*if (!si.begin()){
-    Serial.println("Did not find Si7021 sensor!");
+  // bme680
+  //bme680.begin();
+  if (!bme680.begin()){
+    Serial.println("[BME680]: ERROR sensor!");
     sleepDeep(1);
-  }*/
+  }
+  bme680.setTemperatureOversampling(BME680_OS_8X);
+  bme680.setHumidityOversampling(BME680_OS_2X);
+  bme680.setPressureOversampling(BME680_OS_4X);
+  bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
+  bme680.setGasHeater(320, 150); // 320*C for 150 ms
 }
 
 void loop() {
-  float temperature = si.readTemperature(); 
-  float humidity = si.readHumidity();
+  if (! bme680.performReading()) {
+    Serial.println("[BME680]: ERROR read!");
+    sleepDeep(1);
+  }
+  float temperature = bme680.temperature; 
+  float humidity = bme680.humidity;
+  float pressure = bme680.pressure;
+  float altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
+  float gas = bme680.gas_resistance / 1000.0;
   if (!isnan(temperature)) {
     Serial.print(SENSOR_TYPE);
     Serial.print(": ");
     Serial.print(temperature);
     Serial.print("C, ");
     Serial.print(humidity);
-    Serial.println("%, ");
+    Serial.print("%, ");
+    Serial.print(pressure);
+    Serial.print("hPa, ");
+    Serial.print(altitude);
+    Serial.print("m, ");
+    Serial.print(gas);
+    Serial.println("KOhms, ");
   }
 
   float vcc = vRef.readVcc()/100;
@@ -89,6 +108,12 @@ void loop() {
     str += int(round(temperature*10));
     str += ",H1:";
     str += int(round(humidity*10));
+    str += ",P1:";
+    str += int(round(pressure*10));
+    str += ",A1:";
+    str += int(round(altitude*10));
+    str += ",G1:";
+    str += int(round(gas*10));
   }
   str += ",V1:";
   str += int(vcc);
