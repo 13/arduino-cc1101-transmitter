@@ -109,7 +109,7 @@ void loop() {
     str += ",H1:";
     str += int(round(humidity*10));
     str += ",P1:";
-    str += int(pressure);
+    str += int(round(pressure*10));
     str += ",A1:";
     str += int(round(altitude*10));
     str += ",G1:";
