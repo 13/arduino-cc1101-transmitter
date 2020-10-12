@@ -74,7 +74,7 @@ void loop() {
   }
   float temperature = bme680.temperature; 
   float humidity = bme680.humidity;
-  float pressure = bme680.pressure;
+  float pressure = bme680.pressure/100.0;
   float altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
   float gas = bme680.gas_resistance / 1000.0;
   if (!isnan(temperature)) {
@@ -109,7 +109,7 @@ void loop() {
     str += ",H1:";
     str += int(round(humidity*10));
     str += ",P1:";
-    str += int(round(pressure*10));
+    str += int(pressure);
     str += ",A1:";
     str += int(round(altitude*10));
     str += ",G1:";
