@@ -24,12 +24,26 @@ VoltageReference vRef;
 Adafruit_BME680 bme680 = Adafruit_BME680();
 float SEALEVELPRESSURE_HPA = 1013.25;
 
+float hum_weighting = 0.25; // so hum effect is 25% of the total air quality score
+float gas_weighting = 0.75; // so gas effect is 75% of the total air quality score
+
+int humidity_score, gas_score;
+float gas_reference = 2500;
+float hum_reference = 40;
+int getgasreference_count = 0;
+int gas_lower_limit = 10000;  // Bad air quality limit
+int gas_upper_limit = 300000; // Good air quality limit
+
 // counter
 uint16_t msgCounter = 1;
 
 String getUniqueID();
 void sleepDeep(uint8_t t);
 void printHex(uint8_t num);
+void GetGasReference();
+String CalculateIAQ(int score);
+int GetHumidityScore();
+int GetGasScore();
 
 void setup() {
   Serial.begin(9600);
@@ -65,6 +79,7 @@ void setup() {
   bme680.setPressureOversampling(BME680_OS_4X);
   bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
   bme680.setGasHeater(320, 150); // 320*C for 150 ms
+  GetGasReference();
 }
 
 void loop() {
@@ -77,6 +92,12 @@ void loop() {
   float pressure = bme680.pressure/100.0;
   float altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
   float gas = bme680.gas_resistance / 1000.0;
+  humidity_score = GetHumidityScore();
+  gas_score      = GetGasScore();
+  //Combine results for the final IAQ index value (0-100% where 100% is good quality air)
+  float air_quality_score = humidity_score + gas_score;
+  if ((getgasreference_count++) % 5 == 0) GetGasReference();
+  int iaq = (100 - air_quality_score) * 5;
   if (!isnan(temperature)) {
     Serial.print(SENSOR_TYPE);
     Serial.print(": ");
@@ -89,12 +110,15 @@ void loop() {
     Serial.print(altitude);
     Serial.print("m, ");
     Serial.print(gas);
-    Serial.println("KOhms, ");
+    Serial.print("KOhms, ");
+    Serial.print(gas_reference);
+    Serial.print("ohms, ");
+    Serial.print(iaq);
+    Serial.println(" IAQ");
   }
-
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
-  Serial.print(vcc);
+  Serial.println(vcc);
 
   // prepare msg string
   //long randNum = random(0,9);
@@ -111,9 +135,9 @@ void loop() {
     str += ",P1:";
     str += int(round(pressure*10));
     str += ",A1:";
-    str += int(round(altitude*10));
-    str += ",G1:";
-    str += int(round(gas*10));
+    str += int(round(altitude));
+    str += ",Q1:";
+    str += int(round(iaq));
   }
   str += ",V1:";
   str += int(vcc);
@@ -157,6 +181,54 @@ void loop() {
   }
   sleepDeep(DS_LONG);
   msgCounter++;
+}
+
+void GetGasReference() {
+  // Now run the sensor for a burn-in period, then use combination of relative humidity and gas resistance to estimate indoor air quality as a percentage.
+  //Serial.println("Getting a new gas reference value");
+  int readings = 10;
+  for (int i = 1; i <= readings; i++) { // read gas for 10 x 0.150mS = 1.5secs
+    gas_reference += bme680.readGas();
+  }
+  gas_reference = gas_reference / readings;
+  //Serial.println("Gas Reference = "+String(gas_reference,3));
+}
+
+String CalculateIAQ(int score) {
+  String IAQ_text = "air quality is ";
+  score = (100 - score) * 5;
+  if      (score >= 301)                  IAQ_text += "Hazardous";
+  else if (score >= 201 && score <= 300 ) IAQ_text += "Very Unhealthy";
+  else if (score >= 176 && score <= 200 ) IAQ_text += "Unhealthy";
+  else if (score >= 151 && score <= 175 ) IAQ_text += "Unhealthy for Sensitive Groups";
+  else if (score >=  51 && score <= 150 ) IAQ_text += "Moderate";
+  else if (score >=  00 && score <=  50 ) IAQ_text += "Good";
+  Serial.print("IAQ Score = " + String(score) + ", ");
+  return IAQ_text;
+}
+
+int GetHumidityScore() {  //Calculate humidity contribution to IAQ index
+  float current_humidity = bme680.readHumidity();
+  if (current_humidity >= 38 && current_humidity <= 42) // Humidity +/-5% around optimum
+    humidity_score = 0.25 * 100;
+  else
+  { // Humidity is sub-optimal
+    if (current_humidity < 38)
+      humidity_score = 0.25 / hum_reference * current_humidity * 100;
+    else
+    {
+      humidity_score = ((-0.25 / (100 - hum_reference) * current_humidity) + 0.416666) * 100;
+    }
+  }
+  return humidity_score;
+}
+
+int GetGasScore() {
+  //Calculate gas contribution to IAQ index
+  gas_score = (0.75 / (gas_upper_limit - gas_lower_limit) * gas_reference - (gas_lower_limit * (0.75 / (gas_upper_limit - gas_lower_limit)))) * 100.00;
+  if (gas_score > 75) gas_score = 75; // Sometimes gas readings can go outside of expected scale maximum
+  if (gas_score <  0) gas_score = 0;  // Sometimes gas readings can go outside of expected scale minimum
+  return gas_score;
 }
 
 // Last 4 digits of ChipID
