@@ -2,17 +2,23 @@
 #include <EEPROM.h>
 #include <RadioLib.h>
 #include <LowPower.h>
-#include <ArduinoUniqueID.h>
 #include <VoltageReference.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Wire.h>
 #include <Adafruit_BME680.h>
 
-#define DEBUG
+#define INFO 
+//#define DEBUG
 
 // sensors
-#define SENSOR_TYPE     "bme680"
+#define SENSOR_TYPE_1   "bme680"
+#define SENSOR_TYPE_2   "ds18b20"
 #define SENSOR_PIN_1    0 // sda
 #define SENSOR_PIN_2    2 // sdc
-#define DS_LONG         2 // deepsleep min
+#define SENSOR_PIN_3    3 // onewire
+#define DS_L           10 // deepsleep min
+#define DS_S            2 // deepsleep min
 
 // CC1101
 CC1101 cc = new Module(10, 2, RADIOLIB_NC);
@@ -23,6 +29,9 @@ VoltageReference vRef;
 // bme680
 Adafruit_BME680 bme680 = Adafruit_BME680();
 float SEALEVELPRESSURE_HPA = 1013.25;
+// DS18B20
+OneWire oneWire(SENSOR_PIN_3);
+DallasTemperature ds18b20(&oneWire);
 
 float hum_weighting = 0.25; // so hum effect is 25% of the total air quality score
 float gas_weighting = 0.75; // so gas effect is 75% of the total air quality score
@@ -37,7 +46,7 @@ int gas_upper_limit = 300000; // Good air quality limit
 // counter
 uint16_t msgCounter = 1;
 
-String getUniqueID();
+int getUniqueID();
 void sleepDeep(uint8_t t);
 void printHex(uint8_t num);
 void GetGasReference();
@@ -48,7 +57,7 @@ int GetGasScore();
 void setup() {
   Serial.begin(9600);
   delay(10);
-#ifdef DEBUG
+#ifdef INFO
   delay(20);
 #endif
   // Start Boot
@@ -64,7 +73,7 @@ void setup() {
   } else {
     Serial.print(F("ERR "));
     Serial.println(state);
-    sleepDeep(1);
+    sleepDeep(DS_S);
   }
   // voltage
   vRef.begin();
@@ -72,7 +81,9 @@ void setup() {
   //bme680.begin();
   if (!bme680.begin()){
     Serial.println("[BME680]: ERROR sensor!");
-    sleepDeep(1);
+    sleepDeep(DS_S);
+  // DS18B20
+  ds18b20.begin();
   }
   bme680.setTemperatureOversampling(BME680_OS_8X);
   bme680.setHumidityOversampling(BME680_OS_2X);
@@ -87,74 +98,96 @@ void loop() {
     Serial.println("[BME680]: ERROR read!");
     sleepDeep(1);
   }
-  float temperature = bme680.temperature; 
-  float humidity = bme680.humidity;
-  float pressure = bme680.pressure/100.0;
-  float altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
-  float gas = bme680.gas_resistance / 1000.0;
+  float bme680_temperature = bme680.temperature; 
+  float bme680_humidity = bme680.humidity;
+  float bme680_pressure = bme680.pressure/100.0;
+  float bme680_altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
+  float bme680_gas = bme680.gas_resistance / 1000.0;
   humidity_score = GetHumidityScore();
   gas_score      = GetGasScore();
   //Combine results for the final IAQ index value (0-100% where 100% is good quality air)
   float air_quality_score = humidity_score + gas_score;
   if ((getgasreference_count++) % 5 == 0) GetGasReference();
   int iaq = (100 - air_quality_score) * 5;
-  if (!isnan(temperature)) {
-    Serial.print(SENSOR_TYPE);
+  if (!isnan(bme680_temperature)) {
+    Serial.print(SENSOR_TYPE_1);
     Serial.print(": ");
-    Serial.print(temperature);
+    Serial.print(bme680_temperature);
     Serial.print("C, ");
-    Serial.print(humidity);
+    Serial.print(bme680_humidity);
     Serial.print("%, ");
-    Serial.print(pressure);
+    Serial.print(bme680_pressure);
     Serial.print("hPa, ");
-    Serial.print(altitude);
+    Serial.print(bme680_altitude);
     Serial.print("m, ");
-    Serial.print(gas);
+    Serial.print(bme680_gas);
     Serial.print("KOhms, ");
     Serial.print(gas_reference);
     Serial.print("ohms, ");
     Serial.print(iaq);
     Serial.println(" IAQ");
   }
+
+  ds18b20.requestTemperatures();
+  float ds_temperature = ds18b20.getTempCByIndex(0);
+  if (ds_temperature != DEVICE_DISCONNECTED_C) {
+    Serial.print(SENSOR_TYPE_2);
+    Serial.print(": ");
+    Serial.print(ds_temperature);
+    Serial.println("C");
+  }
+
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
-  Serial.println(vcc);
+  Serial.print(vcc);
 
   // prepare msg string
-  //long randNum = random(0,9);
-  String str = "M,I:";
+  String str = "M";
+#ifdef DEBUG
+  str += ",I:";
   str += msgCounter;
-  //str += randNum;
+#endif
   str += ",N:";
-  str += getUniqueID();
-  if (!isnan(temperature)) {
+  str += String(getUniqueID(), HEX);
+  if (!isnan(bme680_temperature)) {
     str += ",T1:";
-    str += int(round(temperature*10));
+    str += int(round(bme680_temperature*10));
     str += ",H1:";
-    str += int(round(humidity*10));
+    str += int(round(bme680_humidity*10));
     str += ",P1:";
-    str += int(round(pressure*10));
+    str += int(round(bme680_pressure*10));
     str += ",A1:";
-    str += int(round(altitude));
+    str += int(round(bme680_altitude));
     str += ",Q1:";
     str += int(round(iaq));
   }
+  if (ds_temperature != DEVICE_DISCONNECTED_C) {
+    str += ",T2:";
+    str += int(round(ds_temperature*10));
+  }
   str += ",V1:";
   str += int(vcc);
-  str += ",E:";
 
   if (str.length() > 60){
-    Serial.println(F("> String too long"));
-    sleepDeep(1);
-  }
+    Serial.print(F("> String too long: "));
+    Serial.println(str.length());
+    sleepDeep(DS_S);
+  } else {
+    Serial.print(F("> String length: "));
+    Serial.println(str.length());
+    //str += ",E:";
+    int str_diff = 60 - str.length();
+    if (str_diff >= 1){ str += ",";}
+    if (str_diff >= 2){ str += "E";}
+    if (str_diff >= 3){ str += ":";}
 
-  // max length is 62 because of Arduino String last byte 00
-  // but 62 not good better use 61
-  // String length here to 60, thus packet length 61
-  for (uint8_t i = str.length(); i < 60; i++){
-    str += "0";
+    // max length is 62 because of Arduino String last byte 00
+    // but 62 not good better use 61
+    // String length here to 60, thus packet length 61
+    for (uint8_t i = str.length(); i < 60; i++){
+      str += "0";
+    }
   }
-
   Serial.print(F("[CC1101] Transmitting packet... "));
   // String to byte +1 string nul terminator 00 and overwrite 
   byte byteArr[str.length()+1];
@@ -179,7 +212,7 @@ void loop() {
     Serial.print(F("ERR, code "));
     Serial.println(state);
   }
-  sleepDeep(DS_LONG);
+  sleepDeep(DS_L);
   msgCounter++;
 }
 
@@ -232,35 +265,22 @@ int GetGasScore() {
 }
 
 // Last 4 digits of ChipID
-String getUniqueID(){
-//#ifdef DEBUG
-//	Serial.println();
-//  UniqueIDdump(Serial);
-//#endif
-  String uid = "";
-	for (size_t i = 7; i < UniqueIDsize; i++){
-		if (UniqueID[i] < 0x10){
-      uid += "0";
-    }
-    uid += String(UniqueID[i],HEX);
-	}
-	Serial.println();
+int getUniqueID(){
+  int uid = 0;
   // read EEPROM serial number
-  if (uid == "ffff"){
-    int address = 13;
-    int serialNumber;
-    if (EEPROM.read(address) != 255){
-      EEPROM.get(address, serialNumber);
-      uid = serialNumber;
-	    Serial.print("EEPROM SN: ");
-    } else {
-	    Serial.print("EEPROM SN: ERROR EMPTY!");
-      uid = "0000";
-    }
+  int address = 13;
+  int serialNumber;
+	Serial.println();
+  if (EEPROM.read(address) != 255){
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+	  Serial.print("EEPROM SN: ");
+	  Serial.print(uid);
+    Serial.print(" - HEX: ");
+    Serial.println(String(serialNumber, HEX));
   } else {
-	  Serial.print("CHIP SN: ");
+	  Serial.println("EEPROM SN: ERROR EMPTY!");
   }
-	Serial.println(uid);
 	return uid;
 }
 
@@ -270,7 +290,7 @@ String getUniqueID(){
 // 0 = forever
 void sleepDeep(uint8_t t) {
   uint8_t m = 60;
-#ifdef DEBUG
+#ifdef INFO
   Serial.print("Deep Sleep: ");
   if (t < 1){
     Serial.println("forever");
