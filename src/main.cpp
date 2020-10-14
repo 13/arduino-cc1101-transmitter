@@ -17,7 +17,7 @@
 #define SENSOR_PIN_1    0 // sda
 #define SENSOR_PIN_2    2 // sdc
 #define SENSOR_PIN_3    3 // onewire
-#define DS_L           10 // deepsleep min
+#define DS_L            5 // deepsleep min
 #define DS_S            2 // deepsleep min
 
 // CC1101
@@ -94,6 +94,14 @@ void setup() {
 }
 
 void loop() {
+  ds18b20.requestTemperatures();
+  float ds_temperature = ds18b20.getTempCByIndex(0);
+  if (ds_temperature != DEVICE_DISCONNECTED_C) {
+    Serial.print(SENSOR_TYPE_2);
+    Serial.print(": ");
+    Serial.print(ds_temperature);
+    Serial.println("C");
+  }
   if (! bme680.performReading()) {
     Serial.println("[BME680]: ERROR read!");
     sleepDeep(1);
@@ -126,15 +134,6 @@ void loop() {
     Serial.print("ohms, ");
     Serial.print(iaq);
     Serial.println(" IAQ");
-  }
-
-  ds18b20.requestTemperatures();
-  float ds_temperature = ds18b20.getTempCByIndex(0);
-  if (ds_temperature != DEVICE_DISCONNECTED_C) {
-    Serial.print(SENSOR_TYPE_2);
-    Serial.print(": ");
-    Serial.print(ds_temperature);
-    Serial.println("C");
   }
 
   float vcc = vRef.readVcc()/100;
