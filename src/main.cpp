@@ -40,7 +40,7 @@ Adafruit_BMP280 bmp280;
 // counter
 uint16_t msgCounter = 1;
 
-String getUniqueID();
+int getUniqueID();
 void sleepDeep(uint8_t t);
 void printHex(uint8_t num);
 
@@ -123,7 +123,7 @@ void loop() {
   str += msgCounter;
 #endif
   str += ",N:";
-  str += getUniqueID();
+  str += String(getUniqueID(), HEX);
   if (!isnan(si_temperature)) {
     str += ",T1:";
     str += int(round(si_temperature*10));
@@ -194,35 +194,37 @@ void loop() {
 }
 
 // Last 4 digits of ChipID
-String getUniqueID(){
+int getUniqueID(){
 //#ifdef DEBUG
 //	Serial.println();
 //  UniqueIDdump(Serial);
 //#endif
-  String uid = "";
-	for (size_t i = 7; i < UniqueIDsize; i++){
+  int uid = 0;
+  //int uid = "";
+	/*for (size_t i = 7; i < UniqueIDsize; i++){
 		if (UniqueID[i] < 0x10){
       uid += "0";
     }
     uid += String(UniqueID[i],HEX);
-	}
+	}*/
 	Serial.println();
   // read EEPROM serial number
-  if (uid == "ffff"){
-    int address = 13;
-    int serialNumber;
-    if (EEPROM.read(address) != 255){
-      EEPROM.get(address, serialNumber);
-      uid = serialNumber;
-	    Serial.print("EEPROM SN: ");
-    } else {
-	    Serial.print("EEPROM SN: ERROR EMPTY!");
-      uid = "0000";
-    }
+  //if (uid == "ffff"){
+  int address = 13;
+  int serialNumber;
+  if (EEPROM.read(address) != 255){
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+	  Serial.print("EEPROM SN: ");
   } else {
-	  Serial.print("CHIP SN: ");
+	  Serial.print("EEPROM SN: ERROR EMPTY!");
   }
-	Serial.println(uid);
+  /*} else {
+	  Serial.print("CHIP SN: ");
+  }*/
+	Serial.print(uid);
+  Serial.print(" - HEX: ");
+  Serial.println(String(serialNumber, HEX));
 	return uid;
 }
 
