@@ -134,7 +134,7 @@ void loop() {
     str += ",T2:";
     str += int(round(ds_temperature*10));
   }
-  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
+  if (!isnan(bmp280_pressure) && bmp280_pressure > 0) {
     str += ",T3:";
     str += int(round(bmp280_temperature*10));
     str += ",P1:";
@@ -199,6 +199,7 @@ int getUniqueID(){
   // read EEPROM serial number
   int address = 13;
   int serialNumber;
+	Serial.println();
   if (EEPROM.read(address) != 255){
     EEPROM.get(address, serialNumber);
     uid = serialNumber;
