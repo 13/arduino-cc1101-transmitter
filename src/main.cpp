@@ -6,8 +6,6 @@
 #include <Adafruit_Si7021.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <Wire.h>
-#include <Adafruit_BMP280.h>
 
 #define INFO 
 //#define DEBUG
@@ -15,7 +13,6 @@
 // sensors
 #define SENSOR_TYPE_1   "si7021"
 #define SENSOR_TYPE_2   "ds18b20"
-#define SENSOR_TYPE_3   "bmp280"
 #define SENSOR_PIN_1    0 // sda
 #define SENSOR_PIN_2    2 // sdc
 #define SENSOR_PIN_3    3 // onewire
@@ -33,8 +30,6 @@ Adafruit_Si7021 si = Adafruit_Si7021();
 // DS18B20
 OneWire oneWire(SENSOR_PIN_3);
 DallasTemperature ds18b20(&oneWire);
-// BMP280
-Adafruit_BMP280 bmp280;
 
 // counter
 #ifdef DEBUG
@@ -56,6 +51,7 @@ void setup() {
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
   Serial.println(F(__TIMESTAMP__));
+
   // Start CC1101
   Serial.print(F("[CC1101] Initializing... "));
   int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
@@ -66,18 +62,21 @@ void setup() {
     Serial.println(state);
     sleepDeep(DS_S);
   }
+
   // voltage
   vRef.begin();
+
   // Si7021
-  si.begin();
-  /*if (!si.begin()){
-    Serial.println("Did not find Si7021 sensor!");
+  if (!si.begin()){
+    Serial.print(SENSOR_TYPE_1);
+    Serial.print(": ");
+    Serial.println(" ERROR -1");
     sleepDeep(DS_S);
-  }*/
+  }
+  //si.begin();
+
   // DS18B20
   ds18b20.begin();
-  // BMP280
-  bmp280.begin(0x76,0x60); // fix GY-B11 module
 }
 
 void loop() {
@@ -98,19 +97,10 @@ void loop() {
     Serial.print(": ");
     Serial.print(ds_temperature);
     Serial.println("C");
-  }
-  float bmp280_temperature = bmp280.readTemperature();
-  float bmp280_pressure = bmp280.readPressure();
-  float bmp280_altitude = bmp280.readAltitude(1013.25);
-  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
-    Serial.print(SENSOR_TYPE_3);
+  } else {
+    Serial.print(SENSOR_TYPE_2);
     Serial.print(": ");
-    Serial.print(bmp280_temperature);
-    Serial.print("C, ");
-    Serial.print(bmp280_pressure);
-    Serial.print("Pa, ");
-    Serial.print(bmp280_altitude);
-    Serial.println("m");
+    Serial.println("ERR");
   }
 
   float vcc = vRef.readVcc()/100;
@@ -134,14 +124,6 @@ void loop() {
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
     str += ",T2:";
     str += int(round(ds_temperature*10));
-  }
-  if (!isnan(bmp280_pressure) && bmp280_pressure > 0) {
-    str += ",T3:";
-    str += int(round(bmp280_temperature*10));
-    str += ",P1:";
-    str += int(round(bmp280_pressure)/10);
-    str += ",A1:";
-    str += int(round(bmp280_altitude));
   }
   str += ",V1:";
   str += int(vcc);
@@ -208,7 +190,7 @@ int getUniqueID(){
     uid = serialNumber;
 	  Serial.print("EEPROM SN: ");
 	  Serial.print(uid);
-    Serial.print(" - HEX: ");
+    Serial.print(" -> HEX: ");
     Serial.println(String(serialNumber, HEX));
   } else {
 	  Serial.println("EEPROM SN: ERROR EMPTY!");
