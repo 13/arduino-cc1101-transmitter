@@ -44,7 +44,9 @@ int gas_lower_limit = 10000;  // Bad air quality limit
 int gas_upper_limit = 300000; // Good air quality limit
 
 // counter
+#ifdef DEBUG
 uint16_t msgCounter = 1;
+#endif
 
 int getUniqueID();
 void sleepDeep(uint8_t t);
@@ -65,6 +67,7 @@ void setup() {
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
   Serial.println(F(__TIMESTAMP__));
+
   // Start CC1101
   Serial.print(F("[CC1101] Initializing... "));
   int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
@@ -75,16 +78,23 @@ void setup() {
     Serial.println(state);
     sleepDeep(DS_S);
   }
+
   // voltage
   vRef.begin();
-  // bme680
-  //bme680.begin();
+
+  // bmp680
   if (!bme680.begin()){
-    Serial.println("[BME680]: ERROR sensor!");
+    Serial.print(SENSOR_TYPE_1);
+    Serial.print(": ");
+    Serial.println(" ERROR -1");
     sleepDeep(DS_S);
+  }
+  //bmp680.begin();
+
   // DS18B20
   ds18b20.begin();
-  }
+  
+  // bmp680
   bme680.setTemperatureOversampling(BME680_OS_8X);
   bme680.setHumidityOversampling(BME680_OS_2X);
   bme680.setPressureOversampling(BME680_OS_4X);
@@ -101,6 +111,10 @@ void loop() {
     Serial.print(": ");
     Serial.print(ds_temperature);
     Serial.println("C");
+  } else {
+    Serial.print(SENSOR_TYPE_2);
+    Serial.print(": ");
+    Serial.println("ERR");
   }
   if (! bme680.performReading()) {
     Serial.println("[BME680]: ERROR read!");
@@ -212,7 +226,9 @@ void loop() {
     Serial.println(state);
   }
   sleepDeep(DS_L);
+#ifdef DEBUG
   msgCounter++;
+#endif
 }
 
 void GetGasReference() {
@@ -275,7 +291,7 @@ int getUniqueID(){
     uid = serialNumber;
 	  Serial.print("EEPROM SN: ");
 	  Serial.print(uid);
-    Serial.print(" - HEX: ");
+    Serial.print(" -> HEX: ");
     Serial.println(String(serialNumber, HEX));
   } else {
 	  Serial.println("EEPROM SN: ERROR EMPTY!");
