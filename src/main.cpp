@@ -2,7 +2,6 @@
 #include <EEPROM.h>
 #include <RadioLib.h>
 #include <LowPower.h>
-#include <ArduinoUniqueID.h>
 #include <VoltageReference.h>
 #include <Adafruit_Si7021.h>
 #include <OneWire.h>
@@ -38,7 +37,9 @@ DallasTemperature ds18b20(&oneWire);
 Adafruit_BMP280 bmp280;
 
 // counter
+#ifdef DEBUG
 uint16_t msgCounter = 1;
+#endif
 
 int getUniqueID();
 void sleepDeep(uint8_t t);
@@ -190,7 +191,9 @@ void loop() {
     Serial.println(state);
   }
   sleepDeep(DS_L);
+#ifdef DEBUG
   msgCounter++;
+#endif
 }
 
 // Last 4 digits of ChipID
