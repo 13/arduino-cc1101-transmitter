@@ -18,8 +18,12 @@
 #define SENSOR_PIN_3    3 // onewire
 #define DS_L           10 // deepsleep min
 #define DS_S            2 // deepsleep min
+#define CC_FREQ     868.32
+#define CC_POWER    10
 
 // CC1101
+// CS pin:    10
+// GDO0 pin:  2
 CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 
 // voltage
@@ -54,7 +58,13 @@ void setup() {
 
   // Start CC1101
   Serial.print(F("[CC1101] Initializing... "));
-  int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
+#ifdef INFO 
+  Serial.print(F("Chip: v"));
+  Serial.print(cc.getChipVersion());
+  Serial.print(F(" "));
+#endif
+  //int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
+  int state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
   if (state == ERR_NONE) {
     Serial.println(F("OK"));
   } else {
