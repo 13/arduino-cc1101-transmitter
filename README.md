@@ -103,8 +103,8 @@ First of all you need to running vscode & platformio environment and of course a
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-* Edit ´main.cpp´ to your needs
-* Edit ´platformio.ini´ to your needs
+* Edit `main.cpp` to your needs
+* Edit `platformio.ini` to your needs
 * Build & upload to your Arduino
 
 _For more examples, please refer to the [Documentation](https://github.com/13/cc1101_transmitter/wiki)_
