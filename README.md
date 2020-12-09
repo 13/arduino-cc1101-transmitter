@@ -18,7 +18,7 @@ An Arduino CC1101 transmitter
 
 ## About
 
-The arduino-cc1101-transmitter emits a 61 characters string with a unique id.
+The arduino-cc1101-transmitter emits a 61 characters string with an unique id.
 
 ```
 M,N:87,T1:29,H1:817,T2:25,T3:42,P1:9260,A1:753,V1:38,E:00000
