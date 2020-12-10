@@ -3,24 +3,17 @@
 #include <RadioLib.h>
 #include <LowPower.h>
 #include <VoltageReference.h>
+
+#if __has_include("config.h")
+  #include "config.h"
+#else
+  #error "Using Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
+#endif
+
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Wire.h>
 #include <Adafruit_BME680.h>
-
-#define INFO 
-//#define DEBUG
-
-// sensors
-#define SENSOR_TYPE_1   "bme680"
-#define SENSOR_TYPE_2   "ds18b20"
-#define SENSOR_PIN_1    0 // sda
-#define SENSOR_PIN_2    2 // sdc
-#define SENSOR_PIN_3    3 // onewire
-#define DS_L            5 // deepsleep min
-#define DS_S            2 // deepsleep min
-#define CC_FREQ     868.32
-#define CC_POWER    10
 
 // CC1101
 // CS pin:    10
