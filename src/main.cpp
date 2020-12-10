@@ -21,6 +21,10 @@
   #include <Wire.h>
   #include <Adafruit_BMP280.h>
 #endif
+#ifdef SENSOR_TYPE_bme680
+  #include <Wire.h>
+  #include <Adafruit_BME680.h>
+#endif
 
 // CC1101
 // CS pin:    10
@@ -39,6 +43,10 @@ VoltageReference vRef;
 #endif
 #ifdef SENSOR_TYPE_bmp280
   Adafruit_BMP280 bmp280;
+#endif
+#ifdef SENSOR_TYPE_bme680
+  Adafruit_BME680 bme680 = Adafruit_BME680();
+  float SEALEVELPRESSURE_HPA = 1013.25;
 #endif
 
 // counter
@@ -89,7 +97,6 @@ void setup() {
     Serial.println(" ERROR -1");
     sleepDeep(DS_S);
   }
-  //si.begin();
 #endif
 	
 #ifdef SENSOR_TYPE_ds18b20
@@ -98,6 +105,15 @@ void setup() {
 	
 #ifdef SENSOR_TYPE_bmp280
   bmp280.begin(0x76,0x60); // fix GY-B11 module
+#endif
+
+#ifdef SENSOR_TYPE_bme680
+  if (!bme680.begin()){
+    Serial.print(SENSOR_TYPE_1);
+    Serial.print(": ");
+    Serial.println(" ERROR -1");
+    sleepDeep(DS_S);
+  }
 #endif
 }
 
@@ -143,6 +159,30 @@ void loop() {
     Serial.println("m");
   }
 #endif
+#ifdef SENSOR_TYPE_bme680
+  if (! bme680.performReading()) {
+    Serial.println("[BME680]: ERROR read!");
+    sleepDeep(1);
+  }
+  float bme680_temperature = bme680.temperature; 
+  float bme680_humidity = bme680.humidity;
+  float bme680_pressure = bme680.pressure/100.0;
+  float bme680_altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
+  float bme680_gas = bme680.gas_resistance / 1000.0;
+  if (!isnan(bme680_temperature)) {
+    Serial.print(SENSOR_TYPE_1);
+    Serial.print(": ");
+    Serial.print(bme680_temperature);
+    Serial.print("C, ");
+    Serial.print(bme680_humidity);
+    Serial.print("%, ");
+    Serial.print(bme680_pressure);
+    Serial.print("hPa, ");
+    Serial.print(bme680_altitude);
+    Serial.print("m, ");
+    Serial.print(bme680_gas);
+    Serial.println("KOhms");
+  }
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
   Serial.print(vcc);
