@@ -17,12 +17,13 @@
   #include <OneWire.h>
   #include <DallasTemperature.h>
 #endif
-#ifdef SENSOR_TYPE_bmp280
+#if defined(SENSOR_TYPE_bmp280) || defined(SENSOR_TYPE_bme680)
   #include <Wire.h>
+#endif
+#ifdef SENSOR_TYPE_bmp280
   #include <Adafruit_BMP280.h>
 #endif
 #ifdef SENSOR_TYPE_bme680
-  #include <Wire.h>
   #include <Adafruit_BME680.h>
 #endif
 
@@ -46,7 +47,6 @@ VoltageReference vRef;
 #endif
 #ifdef SENSOR_TYPE_bme680
   Adafruit_BME680 bme680 = Adafruit_BME680();
-  float SEALEVELPRESSURE_HPA = 1013.25;
 #endif
 
 // counter
@@ -167,7 +167,7 @@ void loop() {
   float bme680_temperature = bme680.temperature; 
   float bme680_humidity = bme680.humidity;
   float bme680_pressure = bme680.pressure/100.0;
-  float bme680_altitude = bme680.readAltitude(SEALEVELPRESSURE_HPA);
+  float bme680_altitude = bme680.readAltitude(1013.25);
   float bme680_gas = bme680.gas_resistance / 1000.0;
   if (!isnan(bme680_temperature)) {
     Serial.print(SENSOR_TYPE_1);
@@ -183,6 +183,7 @@ void loop() {
     Serial.print(bme680_gas);
     Serial.println("KOhms");
   }
+#endif
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
   Serial.print(vcc);
@@ -213,12 +214,26 @@ void loop() {
   if (!isnan(bmp280_pressure) && bmp280_pressure > 0) {
     str += ",T3:";
     str += int(round(bmp280_temperature*10));
-    str += ",P1:";
+    str += ",P3:";
     str += int(round(bmp280_pressure)/10);
-    str += ",A1:";
+    str += ",A3:";
     str += int(round(bmp280_altitude));
   }
 #endif
+#ifdef SENSOR_TYPE_bme680
+  if (!isnan(bme680_temperature)) {
+    str += ",T4:";
+    str += int(round(bme680_temperature*10));
+    str += ",H4:";
+    str += int(round(bme680_humidity*10));
+    str += ",P4:";
+    str += int(round(bme680_pressure*10));
+    str += ",A4:";
+    str += int(round(bme680_altitude));
+    str += ",Q4:";
+    str += int(round(bme680_gas));
+  }
+#endif	
   str += ",V1:";
   str += int(vcc);
 
