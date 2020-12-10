@@ -203,13 +203,13 @@ int getUniqueID(){
     Serial.print(" -> HEX: ");
     Serial.println(String(serialNumber, HEX));
   } else {
-	  Serial.println("EEPROM SN: ERROR EMPTY!");
+    Serial.println("EEPROM SN: ERROR EMPTY!");
   }
-	return uid;
+    return uid;
 }
 
 // sleep
-// 1 - 253 minutes
+// 1 - 254 minutes
 // 255 = 8 seconds
 // 0 = forever
 void sleepDeep(uint8_t t) {
