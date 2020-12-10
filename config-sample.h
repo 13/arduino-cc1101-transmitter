@@ -16,3 +16,7 @@
 // CC1101
 #define CC_FREQ               868.32
 #define CC_POWER              10
+
+// Verbose
+#define INFO 
+//#define DEBUG
