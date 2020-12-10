@@ -3,23 +3,18 @@
 #include <RadioLib.h>
 #include <LowPower.h>
 #include <VoltageReference.h>
-#include <Adafruit_Si7021.h>
+
+#if __has_include("config.h")
+  #include "config.h"
+#else
+  #error "Using Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
+#endif
+
+#ifdef SENSOR_TYPE_si7021
+  #include <Adafruit_Si7021.h>
+#endif
 #include <OneWire.h>
 #include <DallasTemperature.h>
-
-#define INFO 
-//#define DEBUG
-
-// sensors
-#define SENSOR_TYPE_1   "si7021"
-#define SENSOR_TYPE_2   "ds18b20"
-#define SENSOR_PIN_1    0 // sda
-#define SENSOR_PIN_2    2 // sdc
-#define SENSOR_PIN_3    3 // onewire
-#define DS_L           10 // deepsleep min
-#define DS_S            2 // deepsleep min
-#define CC_FREQ     868.32
-#define CC_POWER    10
 
 // CC1101
 // CS pin:    10
@@ -29,8 +24,9 @@ CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 // voltage
 VoltageReference vRef;
 
-// Si7021
-Adafruit_Si7021 si = Adafruit_Si7021();
+#ifdef SENSOR_TYPE_si7021
+  Adafruit_Si7021 si = Adafruit_Si7021();
+#endif
 // DS18B20
 OneWire oneWire(SENSOR_PIN_3);
 DallasTemperature ds18b20(&oneWire);
@@ -76,30 +72,33 @@ void setup() {
   // voltage
   vRef.begin();
 
-  // Si7021
+#ifdef SENSOR_TYPE_si7021
   if (!si.begin()){
-    Serial.print(SENSOR_TYPE_1);
+    Serial.print(SENSOR_TYPE_si7021);
     Serial.print(": ");
     Serial.println(" ERROR -1");
     sleepDeep(DS_S);
   }
   //si.begin();
+#endif	
 
   // DS18B20
   ds18b20.begin();
 }
 
 void loop() {
+#ifdef SENSOR_TYPE_si7021	
   float si_temperature = si.readTemperature(); 
   float si_humidity = si.readHumidity();
   if (!isnan(si_temperature)) {
-    Serial.print(SENSOR_TYPE_1);
+    Serial.print(SENSOR_TYPE_si7021);
     Serial.print(": ");
     Serial.print(si_temperature);
     Serial.print("C, ");
     Serial.print(si_humidity);
     Serial.println("%, ");
   }
+#endif	
   ds18b20.requestTemperatures();
   float ds_temperature = ds18b20.getTempCByIndex(0);
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
@@ -125,12 +124,14 @@ void loop() {
 #endif
   str += ",N:";
   str += String(getUniqueID(), HEX);
+#ifdef SENSOR_TYPE_si7021	
   if (!isnan(si_temperature)) {
     str += ",T1:";
     str += int(round(si_temperature*10));
     str += ",H1:";
     str += int(round(si_humidity*10));
   }
+#endif
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
     str += ",T2:";
     str += int(round(ds_temperature*10));
