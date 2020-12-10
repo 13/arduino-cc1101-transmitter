@@ -17,6 +17,10 @@
   #include <OneWire.h>
   #include <DallasTemperature.h>
 #endif
+#ifdef SENSOR_TYPE_bmp280
+  #include <Wire.h>
+  #include <Adafruit_BMP280.h>
+#endif
 
 // CC1101
 // CS pin:    10
@@ -32,6 +36,9 @@ VoltageReference vRef;
 #ifdef SENSOR_TYPE_ds18b20
   OneWire oneWire(SENSOR_PIN_OW);
   DallasTemperature ds18b20(&oneWire);
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  Adafruit_BMP280 bmp280;
 #endif
 
 // counter
@@ -88,6 +95,10 @@ void setup() {
 #ifdef SENSOR_TYPE_ds18b20
   ds18b20.begin();
 #endif
+	
+#ifdef SENSOR_TYPE_bmp280
+  bmp280.begin(0x76,0x60); // fix GY-B11 module
+#endif
 }
 
 void loop() {
@@ -117,7 +128,21 @@ void loop() {
     Serial.println("ERR");
   }
 #endif
-
+#ifdef SENSOR_TYPE_bmp280
+  float bmp280_temperature = bmp280.readTemperature();
+  float bmp280_pressure = bmp280.readPressure();
+  float bmp280_altitude = bmp280.readAltitude(1013.25);
+  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
+    Serial.print(SENSOR_TYPE_bmp280);
+    Serial.print(": ");
+    Serial.print(bmp280_temperature);
+    Serial.print("C, ");
+    Serial.print(bmp280_pressure);
+    Serial.print("Pa, ");
+    Serial.print(bmp280_altitude);
+    Serial.println("m");
+  }
+#endif
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
   Serial.print(vcc);
@@ -142,6 +167,16 @@ void loop() {
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
     str += ",T2:";
     str += int(round(ds_temperature*10));
+  }
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  if (!isnan(bmp280_pressure) && bmp280_pressure > 0) {
+    str += ",T3:";
+    str += int(round(bmp280_temperature*10));
+    str += ",P1:";
+    str += int(round(bmp280_pressure)/10);
+    str += ",A1:";
+    str += int(round(bmp280_altitude));
   }
 #endif
   str += ",V1:";
