@@ -109,7 +109,7 @@ void setup() {
 
 #ifdef SENSOR_TYPE_bme680
   if (!bme680.begin()){
-    Serial.print(SENSOR_TYPE_1);
+    Serial.print(SENSOR_TYPE_bme680);
     Serial.print(": ");
     Serial.println(" ERROR -1");
     sleepDeep(DS_S);
@@ -170,7 +170,7 @@ void loop() {
   float bme680_altitude = bme680.readAltitude(1013.25);
   float bme680_gas = bme680.gas_resistance / 1000.0;
   if (!isnan(bme680_temperature)) {
-    Serial.print(SENSOR_TYPE_1);
+    Serial.print(SENSOR_TYPE_bme680);
     Serial.print(": ");
     Serial.print(bme680_temperature);
     Serial.print("C, ");
