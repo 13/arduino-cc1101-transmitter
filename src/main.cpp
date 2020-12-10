@@ -13,8 +13,10 @@
 #ifdef SENSOR_TYPE_si7021
   #include <Adafruit_Si7021.h>
 #endif
-#include <OneWire.h>
-#include <DallasTemperature.h>
+#ifdef SENSOR_TYPE_ds18b20
+  #include <OneWire.h>
+  #include <DallasTemperature.h>
+#endif
 
 // CC1101
 // CS pin:    10
@@ -27,9 +29,10 @@ VoltageReference vRef;
 #ifdef SENSOR_TYPE_si7021
   Adafruit_Si7021 si = Adafruit_Si7021();
 #endif
-// DS18B20
-OneWire oneWire(SENSOR_PIN_3);
-DallasTemperature ds18b20(&oneWire);
+#ifdef SENSOR_TYPE_ds18b20
+  OneWire oneWire(SENSOR_PIN_OW);
+  DallasTemperature ds18b20(&oneWire);
+#endif
 
 // counter
 #ifdef DEBUG
@@ -80,10 +83,11 @@ void setup() {
     sleepDeep(DS_S);
   }
   //si.begin();
-#endif	
-
-  // DS18B20
+#endif
+	
+#ifdef SENSOR_TYPE_ds18b20
   ds18b20.begin();
+#endif
 }
 
 void loop() {
@@ -98,19 +102,21 @@ void loop() {
     Serial.print(si_humidity);
     Serial.println("%, ");
   }
-#endif	
+#endif
+#ifdef SENSOR_TYPE_ds18b20
   ds18b20.requestTemperatures();
   float ds_temperature = ds18b20.getTempCByIndex(0);
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
-    Serial.print(SENSOR_TYPE_2);
+    Serial.print(SENSOR_TYPE_ds18b20);
     Serial.print(": ");
     Serial.print(ds_temperature);
     Serial.println("C");
   } else {
-    Serial.print(SENSOR_TYPE_2);
+    Serial.print(SENSOR_TYPE_ds18b20);
     Serial.print(": ");
     Serial.println("ERR");
   }
+#endif
 
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
@@ -132,10 +138,12 @@ void loop() {
     str += int(round(si_humidity*10));
   }
 #endif
+#ifdef SENSOR_TYPE_ds18b20
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
     str += ",T2:";
     str += int(round(ds_temperature*10));
   }
+#endif
   str += ",V1:";
   str += int(vcc);
 
