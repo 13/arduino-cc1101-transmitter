@@ -42,8 +42,10 @@ X4 = bme680
 
 ### Supported sensors
 
-* Si7021 (Temperature & Humidity)
+* Si7021 (Temperature & humidity)
 * DS18B20 (Temperature)
+* BMP280 (Temperature, pressure & altitude)
+* BME680 (Temperature, humidity, pressure, altitude & gas)
 
 ### Built With
 
