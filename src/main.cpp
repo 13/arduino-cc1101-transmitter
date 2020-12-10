@@ -3,23 +3,29 @@
 #include <RadioLib.h>
 #include <LowPower.h>
 #include <VoltageReference.h>
-#include <Adafruit_Si7021.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 
-#define INFO 
-//#define DEBUG
+#if __has_include("config.h")
+  #include "config.h"
+#else
+  #error "Using Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
+#endif
 
-// sensors
-#define SENSOR_TYPE_1   "si7021"
-#define SENSOR_TYPE_2   "ds18b20"
-#define SENSOR_PIN_1    0 // sda
-#define SENSOR_PIN_2    2 // sdc
-#define SENSOR_PIN_3    3 // onewire
-#define DS_L           10 // deepsleep min
-#define DS_S            2 // deepsleep min
-#define CC_FREQ     868.32
-#define CC_POWER    10
+#ifdef SENSOR_TYPE_si7021
+  #include <Adafruit_Si7021.h>
+#endif
+#ifdef SENSOR_TYPE_ds18b20
+  #include <OneWire.h>
+  #include <DallasTemperature.h>
+#endif
+#if defined(SENSOR_TYPE_bmp280) || defined(SENSOR_TYPE_bme680)
+  #include <Wire.h>
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  #include <Adafruit_BMP280.h>
+#endif
+#ifdef SENSOR_TYPE_bme680
+  #include <Adafruit_BME680.h>
+#endif
 
 // CC1101
 // CS pin:    10
@@ -29,11 +35,19 @@ CC1101 cc = new Module(10, 2, RADIOLIB_NC);
 // voltage
 VoltageReference vRef;
 
-// Si7021
-Adafruit_Si7021 si = Adafruit_Si7021();
-// DS18B20
-OneWire oneWire(SENSOR_PIN_3);
-DallasTemperature ds18b20(&oneWire);
+#ifdef SENSOR_TYPE_si7021
+  Adafruit_Si7021 si = Adafruit_Si7021();
+#endif
+#ifdef SENSOR_TYPE_ds18b20
+  OneWire oneWire(SENSOR_PIN_OW);
+  DallasTemperature ds18b20(&oneWire);
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  Adafruit_BMP280 bmp280;
+#endif
+#ifdef SENSOR_TYPE_bme680
+  Adafruit_BME680 bme680 = Adafruit_BME680();
+#endif
 
 // counter
 #ifdef DEBUG
@@ -76,43 +90,100 @@ void setup() {
   // voltage
   vRef.begin();
 
-  // Si7021
+#ifdef SENSOR_TYPE_si7021
   if (!si.begin()){
+    Serial.print(SENSOR_TYPE_si7021);
+    Serial.print(": ");
+    Serial.println(" ERROR -1");
+    sleepDeep(DS_S);
+  }
+#endif
+	
+#ifdef SENSOR_TYPE_ds18b20
+  ds18b20.begin();
+#endif
+	
+#ifdef SENSOR_TYPE_bmp280
+  bmp280.begin(0x76,0x60); // fix GY-B11 module
+#endif
+
+#ifdef SENSOR_TYPE_bme680
+  if (!bme680.begin()){
     Serial.print(SENSOR_TYPE_1);
     Serial.print(": ");
     Serial.println(" ERROR -1");
     sleepDeep(DS_S);
   }
-  //si.begin();
-
-  // DS18B20
-  ds18b20.begin();
+#endif
 }
 
 void loop() {
+#ifdef SENSOR_TYPE_si7021	
   float si_temperature = si.readTemperature(); 
   float si_humidity = si.readHumidity();
   if (!isnan(si_temperature)) {
-    Serial.print(SENSOR_TYPE_1);
+    Serial.print(SENSOR_TYPE_si7021);
     Serial.print(": ");
     Serial.print(si_temperature);
     Serial.print("C, ");
     Serial.print(si_humidity);
     Serial.println("%, ");
   }
+#endif
+#ifdef SENSOR_TYPE_ds18b20
   ds18b20.requestTemperatures();
   float ds_temperature = ds18b20.getTempCByIndex(0);
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
-    Serial.print(SENSOR_TYPE_2);
+    Serial.print(SENSOR_TYPE_ds18b20);
     Serial.print(": ");
     Serial.print(ds_temperature);
     Serial.println("C");
   } else {
-    Serial.print(SENSOR_TYPE_2);
+    Serial.print(SENSOR_TYPE_ds18b20);
     Serial.print(": ");
     Serial.println("ERR");
   }
-
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  float bmp280_temperature = bmp280.readTemperature();
+  float bmp280_pressure = bmp280.readPressure();
+  float bmp280_altitude = bmp280.readAltitude(1013.25);
+  if (!isnan(bmp280_pressure) || bmp280_pressure > 0) {
+    Serial.print(SENSOR_TYPE_bmp280);
+    Serial.print(": ");
+    Serial.print(bmp280_temperature);
+    Serial.print("C, ");
+    Serial.print(bmp280_pressure);
+    Serial.print("Pa, ");
+    Serial.print(bmp280_altitude);
+    Serial.println("m");
+  }
+#endif
+#ifdef SENSOR_TYPE_bme680
+  if (! bme680.performReading()) {
+    Serial.println("[BME680]: ERROR read!");
+    sleepDeep(1);
+  }
+  float bme680_temperature = bme680.temperature; 
+  float bme680_humidity = bme680.humidity;
+  float bme680_pressure = bme680.pressure/100.0;
+  float bme680_altitude = bme680.readAltitude(1013.25);
+  float bme680_gas = bme680.gas_resistance / 1000.0;
+  if (!isnan(bme680_temperature)) {
+    Serial.print(SENSOR_TYPE_1);
+    Serial.print(": ");
+    Serial.print(bme680_temperature);
+    Serial.print("C, ");
+    Serial.print(bme680_humidity);
+    Serial.print("%, ");
+    Serial.print(bme680_pressure);
+    Serial.print("hPa, ");
+    Serial.print(bme680_altitude);
+    Serial.print("m, ");
+    Serial.print(bme680_gas);
+    Serial.println("KOhms");
+  }
+#endif
   float vcc = vRef.readVcc()/100;
   Serial.print("VCC: ");
   Serial.print(vcc);
@@ -125,16 +196,44 @@ void loop() {
 #endif
   str += ",N:";
   str += String(getUniqueID(), HEX);
+#ifdef SENSOR_TYPE_si7021	
   if (!isnan(si_temperature)) {
     str += ",T1:";
     str += int(round(si_temperature*10));
     str += ",H1:";
     str += int(round(si_humidity*10));
   }
+#endif
+#ifdef SENSOR_TYPE_ds18b20
   if (ds_temperature != DEVICE_DISCONNECTED_C) {
     str += ",T2:";
     str += int(round(ds_temperature*10));
   }
+#endif
+#ifdef SENSOR_TYPE_bmp280
+  if (!isnan(bmp280_pressure) && bmp280_pressure > 0) {
+    str += ",T3:";
+    str += int(round(bmp280_temperature*10));
+    str += ",P3:";
+    str += int(round(bmp280_pressure)/10);
+    str += ",A3:";
+    str += int(round(bmp280_altitude));
+  }
+#endif
+#ifdef SENSOR_TYPE_bme680
+  if (!isnan(bme680_temperature)) {
+    str += ",T4:";
+    str += int(round(bme680_temperature*10));
+    str += ",H4:";
+    str += int(round(bme680_humidity*10));
+    str += ",P4:";
+    str += int(round(bme680_pressure*10));
+    str += ",A4:";
+    str += int(round(bme680_altitude));
+    str += ",Q4:";
+    str += int(round(bme680_gas));
+  }
+#endif	
   str += ",V1:";
   str += int(vcc);
 
