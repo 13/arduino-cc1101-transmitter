@@ -33,6 +33,11 @@ V = voltage
 E = string filler until 60 chars
 
 , = delimiter
+
+X1 = si7021
+X2 = ds18b20
+X3 = bmp280
+X4 = bme680
 ```
 
 ### Supported sensors
