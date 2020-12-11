@@ -5,7 +5,7 @@
 #include <VoltageReference.h>
 
 #if __has_include("config.h")
-  #include "config.h"
+  #include <config.h>
 #else
   #error "No Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
 #endif
@@ -50,7 +50,7 @@ VoltageReference vRef;
 #endif
 
 // counter
-#ifdef DEBUG
+#ifdef COUNTER
 uint16_t msgCounter = 1;
 #endif
 
@@ -77,7 +77,6 @@ void setup() {
   Serial.print(cc.getChipVersion());
   Serial.print(F(" "));
 #endif
-  //int state = cc.begin(868.32, 4.8, 48.0, 325.0, 0, 4);
   int state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
   if (state == ERR_NONE) {
     Serial.println(F("OK"));
@@ -190,7 +189,7 @@ void loop() {
 
   // prepare msg string
   String str = "M";
-#ifdef DEBUG
+#ifdef COUNTER
   str += ",I:";
   str += msgCounter;
 #endif
@@ -282,7 +281,7 @@ void loop() {
     Serial.println(state);
   }
   sleepDeep(DS_L);
-#ifdef DEBUG
+#ifdef COUNTER
   msgCounter++;
 #endif
 }
