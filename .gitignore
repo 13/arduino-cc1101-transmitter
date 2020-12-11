@@ -1,4 +1,4 @@
-config.h
+include/config.h
 .pio
 .vscode
 .vscode/.browse.c_cpp.db*
