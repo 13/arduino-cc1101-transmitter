@@ -65,13 +65,12 @@ X4 = bme680
 ### Installation
 
 ```sh
-git clone https://github.com/13/arduino-cc1101-receiver.git
-
-npm install
+git clone https://github.com/13/arduino-cc1101-transmitter.git
 ```
 
 ## Usage
 
+* Edit `config-sample.h` and save as `config.h`
 * Edit `main.cpp` to your needs
 * Edit `platformio.ini` to your needs
 * Build & upload to your Arduino
