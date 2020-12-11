@@ -7,7 +7,7 @@
 #if __has_include("config.h")
   #include "config.h"
 #else
-  #error "Using Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
+  #error "No Defaults: Copy config.sample.h to config.h and edit that to use your own settings"
 #endif
 
 #ifdef SENSOR_TYPE_si7021
