@@ -72,11 +72,6 @@ void setup() {
 
   // Start CC1101
   Serial.print(F("[CC1101] Initializing... "));
-#ifdef INFO 
-  Serial.print(F("Chip: v"));
-  Serial.print(cc.getChipVersion());
-  Serial.print(F(" "));
-#endif
   int state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
   if (state == ERR_NONE) {
     Serial.println(F("OK"));
