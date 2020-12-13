@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
-#include <RadioLib.h>
 #include <LowPower.h>
+#include <RadioLib.h>
 #include <VoltageReference.h>
 
 #if __has_include("config.h")
