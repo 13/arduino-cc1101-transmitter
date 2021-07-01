@@ -127,12 +127,12 @@ void loop() {
 #ifdef SENSOR_TYPE_ds18b20
   ds18b20.requestTemperatures();
   int ds18b20_devices = ds18b20.getDeviceCount();
+  float ds_temperature[ds18b20_devices];
   Serial.print(SENSOR_TYPE_ds18b20);
   Serial.print(": ");
   Serial.print(ds18b20_devices, DEC);
   Serial.println(" devices");
   for (int i = 0; i < ds18b20_devices-1; i++){
-    float ds_temperature[ds18b20_devices];
     ds_temperature[i] = ds18b20.getTempCByIndex(i);
     if (ds_temperature[i] != DEVICE_DISCONNECTED_C) {
       Serial.print(SENSOR_TYPE_ds18b20);	
