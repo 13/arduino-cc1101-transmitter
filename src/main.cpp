@@ -126,16 +126,24 @@ void loop() {
 #endif
 #ifdef SENSOR_TYPE_ds18b20
   ds18b20.requestTemperatures();
-  float ds_temperature = ds18b20.getTempCByIndex(0);
-  if (ds_temperature != DEVICE_DISCONNECTED_C) {
-    Serial.print(SENSOR_TYPE_ds18b20);
-    Serial.print(": ");
-    Serial.print(ds_temperature);
-    Serial.println("C");
-  } else {
-    Serial.print(SENSOR_TYPE_ds18b20);
-    Serial.print(": ");
-    Serial.println("ERR");
+  int ds18b20_devices = ds18b20.getDeviceCount();
+  Serial.print(SENSOR_TYPE_ds18b20);
+  Serial.print(": ");
+  Serial.print(ds18b20_devices, DEC);
+  Serial.println(" devices");
+  for (int i = 0; i < ds18b20_devices-1; i++){
+    float ds_temperature[ds18b20_devices];
+    ds_temperature[i] = ds18b20.getTempCByIndex(i);
+    if (ds_temperature[i] != DEVICE_DISCONNECTED_C) {
+      Serial.print(SENSOR_TYPE_ds18b20);	
+      Serial.print(": ");
+      Serial.print(ds_temperature[i]);
+      Serial.println("C");
+    } else {
+      Serial.print(SENSOR_TYPE_ds18b20);
+      Serial.print(": ");
+      Serial.println("ERR");
+    }
   }
 #endif
 #ifdef SENSOR_TYPE_bmp280
@@ -199,9 +207,17 @@ void loop() {
   }
 #endif
 #ifdef SENSOR_TYPE_ds18b20
-  if (ds_temperature != DEVICE_DISCONNECTED_C) {
-    str += ",T2:";
-    str += int(round(ds_temperature*10));
+  for (int i = 0; i < ds18b20_devices-1; i++){	
+    if (ds_temperature[i] != DEVICE_DISCONNECTED_C) {
+      if (ds18b20_devices == 1) {
+        str += ",T2:";
+      } else {
+        str += ",T2";
+        str += ds_temperature[i];
+        str += ":";
+      }
+      str += int(round(ds_temperature[i]*10));
+    }
   }
 #endif
 #ifdef SENSOR_TYPE_bmp280
