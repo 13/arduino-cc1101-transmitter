@@ -243,9 +243,11 @@ void loop() {
     str += ",Q4:";
     str += int(round(bme680_gas));
   }
-#endif	
+#endif
+#ifdef MODE_BATTERY
   str += ",V1:";
   str += int(vcc);
+#endif
 
   if (str.length() > 60){
     Serial.print(F("> String too long: "));
