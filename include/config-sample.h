@@ -9,6 +9,9 @@
 #define SENSOR_PIN_SDC        2
 #define SENSOR_PIN_OW         3
 
+// MODE BATTERY
+#define MODE_BATTERY          1
+
 // Deepsleep
 #define DS_L                  5 //long
 #define DS_S                  2 //short
