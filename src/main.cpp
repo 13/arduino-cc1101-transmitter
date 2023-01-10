@@ -6,9 +6,11 @@
 
 // Disable/enable sensors
 // #define SENSOR_TYPE_si7021 "si7021"
-#define SENSOR_TYPE_ds18b20 "ds18b20"
+// #define SENSOR_TYPE_ds18b20 "ds18b20"
 // #define SENSOR_TYPE_bmp280 "bmp280"
-#define SENSOR_TYPE_bme680 "bme680"
+// #define SENSOR_TYPE_bme680 "bme680"
+// #define SENSOR_TYPE_pir "pir"
+// #define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
 // #define VERBOSE
@@ -16,12 +18,15 @@
 
 // Deepsleep
 #define DS_L 4 // long
-#define DS_S 1 // short
+#define DS_S 2 // short
 
 // Sensorpins
 #define SENSOR_PIN_SDA 0
 #define SENSOR_PIN_SDC 2
 #define SENSOR_PIN_OW 3
+#ifdef SENSOR_TYPE_pir
+#define SENSOR_PIN_PIR 5
+#endif
 
 // CC1101
 #define CC_FREQ 868.32
@@ -143,10 +148,28 @@ void setup()
     sleepDeep(DS_S);
   }
 #endif
+
+// pir
+#ifdef SENSOR_TYPE_pir
+  pinMode(SENSOR_PIN_PIR, INPUT);
+  sleepDeep(0);
+#endif
 }
 
 void loop()
 {
+#ifdef SENSOR_TYPE_pir
+  if (digitalRead(SENSOR_PIN_PIR) == HIGH)
+  {
+    boolean pir_state = true;
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_pir);
+    Serial.print(": ");
+    Serial.println(pir_state);
+#endif
+  }
+#endif
+
 #ifdef SENSOR_TYPE_si7021
   float si_temperature = si.readTemperature();
   float si_humidity = si.readHumidity();
@@ -282,6 +305,13 @@ void loop()
     str += int(round(bme680_gas));
   }
 #endif
+#ifdef SENSOR_TYPE_pir
+  if (pir_state)
+  {
+    str += ",M4:";
+    str += int(pir_state);
+  }
+#endif
   str += ",V1:";
   str += int(vcc);
 
@@ -360,7 +390,11 @@ void loop()
     Serial.println(state);
   }
 #endif
+#ifdef SENSOR_TYPE_pir
+  sleepDeep(0);
+#else
   sleepDeep(DS_L);
+#endif
 #ifdef DEBUG
   msgCounter++;
 #endif
@@ -400,6 +434,10 @@ int getUniqueID()
 // 1 - 254 minutes
 // 255 = 8 seconds
 // 0 = forever
+void sleepDeep()
+{
+  sleepDeep(0);
+}
 void sleepDeep(uint8_t t)
 {
   uint8_t m = 60;

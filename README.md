@@ -30,6 +30,8 @@ H = humidity
 P = pressure
 A = altitude
 V = voltage
+M = motion
+S = switch
 E = string filler until 60 chars
 
 , = delimiter
@@ -40,12 +42,14 @@ X3 = bmp280
 X4 = bme680
 ```
 
-### Supported sensors
+### Supported sensors 
 
 * Si7021 (Temperature & humidity)
 * DS18B20 (Temperature)
 * BMP280 (Temperature, pressure & altitude)
 * BME680 (Temperature, humidity, pressure, altitude & gas)
+* PIR (Motion)
+* SWITCH (Button, reed & switch)
 
 ### Built With
 
