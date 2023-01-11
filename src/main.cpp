@@ -17,8 +17,9 @@
 // #define DEBUG
 
 // Deepsleep
-#define DS_L 4 // long
-#define DS_S 2 // short
+#define DS_L 4   // long
+#define DS_S 255 // short
+#define DS_D 100 // delay before sleep 70 100 '500' 1000
 
 // Sensorpins
 #define SENSOR_PIN_SDA 0
@@ -73,7 +74,7 @@ Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
 // counter
-#ifdef COUNTER
+#ifdef DEBUG
 uint16_t msgCounter = 1;
 #endif
 
@@ -98,8 +99,8 @@ void setup()
 #ifdef VERBOSE
   Serial.print(F("[CC1101] Initializing... "));
 #endif
-  int state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
-  if (state == ERR_NONE)
+  int cc_state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
+  if (cc_state == ERR_NONE)
   {
 #ifdef VERBOSE
     Serial.println(F("OK"));
@@ -109,7 +110,7 @@ void setup()
   {
 #ifdef VERBOSE
     Serial.print(F("ERR "));
-    Serial.println(state);
+    Serial.println(cc_state);
 #endif
     sleepDeep(DS_S);
   }
@@ -152,7 +153,7 @@ void setup()
 // pir
 #ifdef SENSOR_TYPE_pir
   pinMode(SENSOR_PIN_PIR, INPUT);
-  sleepDeep(0);
+  sleepDeep();
 #endif
 }
 
@@ -256,145 +257,151 @@ void loop()
 #endif
 
   // prepare msg string
-  String str = "M";
+  String str[3];
+  str[0] = "M";
+  str[0] += ",N:";
+  str[0] += String(getUniqueID(), HEX);
 #ifdef DEBUG
-  str += ",I:";
-  str += msgCounter;
+  str[0] += ",I:";
+  str[0] += msgCounter;
 #endif
-  str += ",N:";
-  str += String(getUniqueID(), HEX);
 #ifdef SENSOR_TYPE_si7021
   if (!isnan(si_temperature))
   {
-    str += ",T1:";
-    str += int(round(si_temperature * 10));
-    str += ",H1:";
-    str += int(round(si_humidity * 10));
+    str[0] += ",T1:";
+    str[0] += int(round(si_temperature * 10));
+    str[0] += ",H1:";
+    str[0] += int(round(si_humidity * 10));
   }
 #endif
 #ifdef SENSOR_TYPE_ds18b20
   if (ds_temperature != DEVICE_DISCONNECTED_C)
   {
-    str += ",T2:";
-    str += int(round(ds_temperature * 10));
+    str[0] += ",T2:";
+    str[0] += int(round(ds_temperature * 10));
   }
 #endif
 #ifdef SENSOR_TYPE_bmp280
   if (!isnan(bmp280_pressure) && bmp280_pressure > 0)
   {
-    str += ",T3:";
-    str += int(round(bmp280_temperature * 10));
-    str += ",P3:";
-    str += int(round(bmp280_pressure) / 10);
-    str += ",A3:";
-    str += int(round(bmp280_altitude));
+    str[0] += ",T3:";
+    str[0] += int(round(bmp280_temperature * 10));
+    str[0] += ",P3:";
+    str[0] += int(round(bmp280_pressure) / 10);
+    str[0] += ",A3:";
+    str[0] += int(round(bmp280_altitude));
   }
 #endif
 #ifdef SENSOR_TYPE_bme680
   if (!isnan(bme680_temperature))
   {
-    str += ",T4:";
-    str += int(round(bme680_temperature * 10));
-    str += ",H4:";
-    str += int(round(bme680_humidity * 10));
-    str += ",P4:";
-    str += int(round(bme680_pressure * 10));
-    str += ",A4:";
-    str += int(round(bme680_altitude));
-    str += ",Q4:";
-    str += int(round(bme680_gas));
+    str[0] += ",T4:";
+    str[0] += int(round(bme680_temperature * 10));
+    str[0] += ",H4:";
+    str[0] += int(round(bme680_humidity * 10));
+    str[0] += ",P4:";
+    str[0] += int(round(bme680_pressure * 10));
+    str[0] += ",A4:";
+    str[0] += int(round(bme680_altitude));
+    str[0] += ",Q4:";
+    str[0] += int(round(bme680_gas));
   }
 #endif
 #ifdef SENSOR_TYPE_pir
   if (pir_state)
   {
-    str += ",M4:";
-    str += int(pir_state);
+    str[0] += ",M4:";
+    str[0] += int(pir_state);
   }
 #endif
-  str += ",V1:";
-  str += int(vcc);
+  str[0] += ",V1:";
+  str[0] += int(vcc);
 
-  if (str.length() > 60)
+  int str_diff = 60 - str[0].length();
+
+  if (str_diff < 0)
   {
 #ifdef VERBOSE
     Serial.print(F("> String too long: "));
-    Serial.println(str.length());
+    Serial.println(str[0].length());
+    Serial.print(F("> String diff: "));
+    Serial.println(str_diff);
+    Serial.print(F("> String: "));
+    Serial.println(str[0]);
 #endif
-    sleepDeep(DS_S);
+    int str_middle = str[0].indexOf(",", str_middle + str[0].length() / 2);
+    str[1] = str[0].substring(0, str_middle);
+    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) + ',' + str[0].substring(str_middle + 1);
+    str[0] = "";
   }
-  else
-  {
-#ifdef VERBOSE
-    Serial.print(F("> String length: "));
-    Serial.println(str.length());
-#endif
-    // str += ",E:";
-    int str_diff = 60 - str.length();
-    if (str_diff >= 1)
-    {
-      str += ",";
-    }
-    if (str_diff >= 2)
-    {
-      str += "E";
-    }
-    if (str_diff >= 3)
-    {
-      str += ":";
-    }
 
-    // max length is 62 because of Arduino String last byte 00
-    // but 62 not good better use 61
-    // String length here to 60, thus packet length 61
-    for (uint8_t i = str.length(); i < 60; i++)
-    {
-      str += "0";
-    }
-  }
-#ifdef VERBOSE
-  Serial.print(F("[CC1101] Transmitting packet... "));
-#endif
-  // String to byte +1 string nul terminator 00 and overwrite
-  byte byteArr[str.length() + 1];
-  str.getBytes(byteArr, sizeof(byteArr));
-  byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
-  // Serial.print("Packet Length: ");
-  // Serial.println(sizeof(byteArr)/sizeof(byteArr[0])); // +1
-  int state = cc.transmit(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-
-  if (state == ERR_NONE)
+  for (uint8_t i = 0; i < 3; i++)
   {
-#ifdef VERBOSE
-    Serial.println(F("OK"));
-#endif
-    Serial.println(str);
+    if (str[i].length() != 0)
+    {
+      // max length is 62 because of Arduino String last byte 00
+      // but 62 not good better use 61
+      // String length here to 60, thus packet length 61
+      for (uint8_t j = str[i].length(); j < 60; j++)
+      {
+        str[i] += " ";
+      }
 #ifdef DEBUG
-    for (uint8_t i = 0; i < sizeof(byteArr); i++)
-    {
-      printHex(byteArr[i]);
-    }
-    Serial.println("");
+      Serial.print(F("> DEBUG: "));
+      Serial.println(str[i]);
 #endif
-  }
+      // String to byte +1 string nul terminator 00 and overwrite
+      byte byteArr[str[i].length() + 1];
+      str[i].getBytes(byteArr, sizeof(byteArr));
+      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
 #ifdef VERBOSE
-  else if (state == ERR_PACKET_TOO_LONG)
-  {
-    // the supplied packet was longer than 64 bytes
-    Serial.println(F("ERR: too long!"));
-  }
-  else
-  {
-    // some other error occurred
-    Serial.print(F("ERR, code "));
-    Serial.println(state);
-  }
+      Serial.print(F("> Packet Length: "));
+      Serial.println(sizeof(byteArr) / sizeof(byteArr[0])); // +1
 #endif
-#ifdef SENSOR_TYPE_pir
-  sleepDeep(0);
-#else
+#ifdef VERBOSE
+      Serial.println(F("[CC1101] Transmitting packet... "));
+#endif
+      int cc_tr_state = cc.transmit(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+
+      if (cc_tr_state == ERR_NONE)
+      {
+#ifdef VERBOSE
+        Serial.println(F("[CC1101] Transmitting packet... OK"));
+#endif
+        Serial.println(str[i]);
+#ifdef DEBUGX
+        for (uint8_t k = 0; k < sizeof(byteArr); k++)
+        {
+          printHex(byteArr[k]);
+        }
+        Serial.println("");
+#endif
+      }
+#ifdef VERBOSEX
+      /*else if (cc_tr_state == ERR_PACKET_TOO_LONG)
+      {
+        // the supplied packet was longer than 64 bytes
+        Serial.println(F("ERR: too long!"));
+      }*/
+#endif
+      else
+      {
+#ifdef VERBOSE
+        // some other error occurred
+        Serial.print(F("[CC1101] Transmitting packet... ERR, code "));
+        Serial.println(cc_tr_state);
+#endif
+        // sleepDeep(DS_S);
+      }
+      // delay multi send
+      if (str[i] != 0)
+      {
+        delay(DS_D);
+      }
+    }
+  }
   sleepDeep(DS_L);
-#endif
+
 #ifdef DEBUG
   msgCounter++;
 #endif
@@ -430,10 +437,12 @@ int getUniqueID()
   return uid;
 }
 
-// sleep
-// 1 - 254 minutes
-// 255 = 8 seconds
-// 0 = forever
+/*
+   sleep
+   1 - 254 minutes
+   255 = 8 seconds
+   0, empty = forever
+*/
 void sleepDeep()
 {
   sleepDeep(0);
@@ -459,7 +468,7 @@ void sleepDeep(uint8_t t)
     Serial.println("min");
   }
 #endif
-  delay(500); // 70 100 500 1000
+  delay(DS_D);
   if (t > 0)
   {
     for (int8_t i = 0; i < (t * m / 8); i++)
