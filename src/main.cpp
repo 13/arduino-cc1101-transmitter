@@ -258,8 +258,7 @@ void loop()
 
   // prepare msg string
   String str[3];
-  str[0] = "M";
-  str[0] += ",N:";
+  str[0] = ",N:";
   str[0] += String(getUniqueID(), HEX);
 #ifdef DEBUG
   str[0] += ",I:";
@@ -342,10 +341,12 @@ void loop()
       // max length is 62 because of Arduino String last byte 00
       // but 62 not good better use 61
       // String length here to 60, thus packet length 61
-      for (uint8_t j = str[i].length(); j < 60; j++)
+      /*for (uint8_t j = str[i].length(); j < 60; j++)
       {
         str[i] += " ";
-      }
+      }*/
+      // Z: = +2
+      str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
       Serial.print(F("> DEBUG: "));
       Serial.println(str[i]);
