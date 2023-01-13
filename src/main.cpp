@@ -15,6 +15,7 @@
 // OUTPUT
 // #define VERBOSE
 // #define DEBUG
+// #define CHECKSIZE_ALT
 
 // Deepsleep
 #define DS_L 4   // long
@@ -325,6 +326,7 @@ void loop()
   {
     if (str[i].length() != 0)
     {
+#ifndef CHECKSIZE_ALT
       // max length is 62 because of Arduino String last byte 00
       // but 62 not good better use 61
       // String length here to 60, thus packet length 61
@@ -332,6 +334,7 @@ void loop()
       {
         str[i] += " ";
       }
+#endif
       // Z: = +2
       str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
