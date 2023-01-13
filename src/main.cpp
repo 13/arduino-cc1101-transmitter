@@ -159,6 +159,16 @@ void setup()
 
 void loop()
 {
+
+  // prepare msg string
+  String str[3];
+  str[0] = ",N:";
+  str[0] += String(getUniqueID(), HEX);
+#ifdef DEBUG
+  str[0] += ",I:";
+  str[0] += msgCounter;
+#endif
+
 #ifdef SENSOR_TYPE_pir
   if (digitalRead(SENSOR_PIN_PIR) == HIGH)
   {
@@ -168,23 +178,33 @@ void loop()
     Serial.print(": ");
     Serial.println(pir_state);
 #endif
+    if (pir_state)
+    {
+      str[0] += ",M1:";
+      str[0] += int(pir_state);
+    }
   }
 #endif
 
 #ifdef SENSOR_TYPE_si7021
   float si_temperature = si.readTemperature();
   float si_humidity = si.readHumidity();
-#ifdef VERBOSE
   if (!isnan(si_temperature))
   {
+#ifdef VERBOSE
     Serial.print(SENSOR_TYPE_si7021);
     Serial.print(": ");
     Serial.print(si_temperature);
     Serial.print("C, ");
     Serial.print(si_humidity);
     Serial.println("%, ");
-  }
 #endif
+    str[0] += ",T1:";
+    str[0] += int(round(si_temperature * 10));
+    str[0] += ",H1:";
+    str[0] += int(round(si_humidity * 10));
+  }
+
 #endif
 #ifdef SENSOR_TYPE_ds18b20
   ds18b20.requestTemperatures();
@@ -192,11 +212,17 @@ void loop()
 #ifdef VERBOSE
   Serial.print(SENSOR_TYPE_ds18b20);
   Serial.print(": ");
+#endif
   if (ds_temperature != DEVICE_DISCONNECTED_C)
   {
+#ifdef VERBOSE
     Serial.print(ds_temperature);
     Serial.println("C");
+#endif
+    str[0] += ",T2:";
+    str[0] += int(round(ds_temperature * 10));
   }
+#ifdef VERBOSE
   else
   {
     Serial.println("ERR");
@@ -207,9 +233,9 @@ void loop()
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
   float bmp280_altitude = bmp280.readAltitude(1013.25);
-#ifdef VERBOSE
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
+#ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bmp280);
     Serial.print(": ");
     Serial.print(bmp280_temperature);
@@ -218,23 +244,31 @@ void loop()
     Serial.print("Pa, ");
     Serial.print(bmp280_altitude);
     Serial.println("m");
-  }
 #endif
+    str[0] += ",T3:";
+    str[0] += int(round(bmp280_temperature * 10));
+    str[0] += ",P3:";
+    str[0] += int(round(bmp280_pressure) / 10);
+    str[0] += ",A3:";
+    str[0] += int(round(bmp280_altitude));
+  }
 #endif
 #ifdef SENSOR_TYPE_bme680
   if (!bme680.performReading())
   {
+#ifdef VERBOSE
     Serial.println("[BME680]: ERROR read!");
-    sleepDeep(1);
+#endif
+    sleepDeep(255);
   }
   float bme680_temperature = bme680.temperature;
   float bme680_humidity = bme680.humidity;
   float bme680_pressure = bme680.pressure / 100.0;
   float bme680_altitude = bme680.readAltitude(1013.25);
   float bme680_gas = bme680.gas_resistance / 1000.0;
-#ifdef VERBOSE
   if (!isnan(bme680_temperature))
   {
+#ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bme680);
     Serial.print(": ");
     Serial.print(bme680_temperature);
@@ -247,53 +281,7 @@ void loop()
     Serial.print("m, ");
     Serial.print(bme680_gas);
     Serial.println("KOhms");
-  }
 #endif
-#endif
-  float vcc = vRef.readVcc() / 100;
-#ifdef VERBOSE
-  Serial.print("VCC: ");
-  Serial.print(vcc);
-#endif
-
-  // prepare msg string
-  String str[3];
-  str[0] = ",N:";
-  str[0] += String(getUniqueID(), HEX);
-#ifdef DEBUG
-  str[0] += ",I:";
-  str[0] += msgCounter;
-#endif
-#ifdef SENSOR_TYPE_si7021
-  if (!isnan(si_temperature))
-  {
-    str[0] += ",T1:";
-    str[0] += int(round(si_temperature * 10));
-    str[0] += ",H1:";
-    str[0] += int(round(si_humidity * 10));
-  }
-#endif
-#ifdef SENSOR_TYPE_ds18b20
-  if (ds_temperature != DEVICE_DISCONNECTED_C)
-  {
-    str[0] += ",T2:";
-    str[0] += int(round(ds_temperature * 10));
-  }
-#endif
-#ifdef SENSOR_TYPE_bmp280
-  if (!isnan(bmp280_pressure) && bmp280_pressure > 0)
-  {
-    str[0] += ",T3:";
-    str[0] += int(round(bmp280_temperature * 10));
-    str[0] += ",P3:";
-    str[0] += int(round(bmp280_pressure) / 10);
-    str[0] += ",A3:";
-    str[0] += int(round(bmp280_altitude));
-  }
-#endif
-#ifdef SENSOR_TYPE_bme680
-  if (!isnan(bme680_temperature))
-  {
     str[0] += ",T4:";
     str[0] += int(round(bme680_temperature * 10));
     str[0] += ",H4:";
@@ -305,13 +293,12 @@ void loop()
     str[0] += ",Q4:";
     str[0] += int(round(bme680_gas));
   }
+
 #endif
-#ifdef SENSOR_TYPE_pir
-  if (pir_state)
-  {
-    str[0] += ",M4:";
-    str[0] += int(pir_state);
-  }
+  float vcc = vRef.readVcc() / 100;
+#ifdef VERBOSE
+  Serial.print("VCC: ");
+  Serial.print(vcc);
 #endif
   str[0] += ",V1:";
   str[0] += int(vcc);
