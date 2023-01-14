@@ -15,7 +15,6 @@
 // OUTPUT
 // #define VERBOSE
 // #define DEBUG
-// #define CHECKSIZE_ALT
 
 // Deepsleep
 #define DS_L 4   // long
@@ -299,7 +298,7 @@ void loop()
   float vcc = vRef.readVcc() / 100;
 #ifdef VERBOSE
   Serial.print("VCC: ");
-  Serial.print(vcc);
+  Serial.println(vcc);
 #endif
   str[0] += ",V1:";
   str[0] += int(vcc);
@@ -326,15 +325,14 @@ void loop()
   {
     if (str[i].length() != 0)
     {
-#ifndef CHECKSIZE_ALT
-      // max length is 62 because of Arduino String last byte 00
-      // but 62 not good better use 61
-      // String length here to 60, thus packet length 61
+      /* max length is 62 because of Arduino String last byte 00
+         but 62 not good better use 61
+         String length here to 60, thus packet length 61 */
       for (uint8_t j = str[i].length(); j < 56; j++)
       {
         str[i] += " ";
       }
-#endif
+
       // Z: = +2
       str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
@@ -405,9 +403,6 @@ int getUniqueID()
   // read EEPROM serial number
   int address = 13;
   int serialNumber;
-#ifdef VERBOSE
-  Serial.println();
-#endif
   if (EEPROM.read(address) != 255)
   {
     EEPROM.get(address, serialNumber);
