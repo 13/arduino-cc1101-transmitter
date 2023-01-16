@@ -17,7 +17,7 @@
 // #define DEBUG
 
 // Deepsleep
-#define DS_L 4   // long
+#define DS_L 3   // long
 #define DS_S 255 // short
 #define DS_D 100 // delay before sleep 70 100 '500' 1000
 
