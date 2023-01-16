@@ -21,7 +21,7 @@ An Arduino CC1101 transmitter
 The arduino-cc1101-transmitter emits a 61 characters string with an unique id.
 
 ```
-M,N:87,T1:29,H1:817,T2:25,T3:42,P1:9260,A1:753,V1:38,E:00000
+Z:60,N:87,T1:29,H1:817,T2:25,T3:42,P1:9260,A1:753,V1:38,E:00000
 
 M = acknowledge character
 N = node number
@@ -32,7 +32,6 @@ A = altitude
 V = voltage
 M = motion
 S = switch
-E = string filler until 60 chars
 
 , = delimiter
 
@@ -84,6 +83,9 @@ git clone https://github.com/13/arduino-cc1101-transmitter.git
 - [ ] ...
 
 ## Release History
+
+* 1.1.0
+    * Fixes
 
 * 1.0.0
     * Initial release
