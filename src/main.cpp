@@ -295,13 +295,13 @@ void loop()
   }
 
 #endif
-  float vcc = vRef.readVcc() / 100;
+  float vcc = vRef.readVcc() / 1000.0;
 #ifdef VERBOSE
   Serial.print("VCC: ");
   Serial.println(vcc);
 #endif
   str[0] += ",V1:";
-  str[0] += int(vcc);
+  str[0] += int(vcc*10);
 
   int str_diff = 60 - str[0].length();
 
