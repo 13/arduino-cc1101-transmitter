@@ -3,31 +3,7 @@
 #include <LowPower.h>
 #include <RadioLib.h>
 #include <VoltageReference.h>
-
-// Disable/enable sensors
-// #define SENSOR_TYPE_si7021 "si7021"
-// #define SENSOR_TYPE_ds18b20 "ds18b20"
-// #define SENSOR_TYPE_bmp280 "bmp280"
-// #define SENSOR_TYPE_bme680 "bme680"
-// #define SENSOR_TYPE_pir "pir"
-// #define SENSOR_TYPE_switch "switch"
-
-// OUTPUT
-// #define VERBOSE
-// #define DEBUG
-
-// Deepsleep
-#define DS_L 3   // long
-#define DS_S 255 // short
-#define DS_D 100 // delay before sleep 70 100 '500' 1000
-
-// Sensorpins
-#define SENSOR_PIN_SDA 0
-#define SENSOR_PIN_SDC 2
-#define SENSOR_PIN_OW 3
-#ifdef SENSOR_TYPE_pir
-#define SENSOR_PIN_PIR 5
-#endif
+#include <credentials.h>
 
 // CC1101
 #define CC_FREQ 868.32
@@ -301,7 +277,7 @@ void loop()
   Serial.println(vcc);
 #endif
   str[0] += ",V1:";
-  str[0] += int(vcc*10);
+  str[0] += int(vcc * 10);
 
   int str_diff = 60 - str[0].length();
 
