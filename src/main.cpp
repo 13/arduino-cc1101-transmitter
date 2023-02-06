@@ -272,20 +272,11 @@ void loop()
 
 #endif
   float vcc = vRef.readVcc() / 1000.0;
-	// to test
-  int analog = analogRead(A0);
-	int vccInt = vRef.readVcc();
-	Serial.print("Board voltage is ");
-	Serial.print(vccInt);
-	Serial.print("mV, analog pin voltage is ");
-	Serial.print(vccInt * analog / 1023);
-	Serial.println("mV");
 #ifdef VERBOSE
   Serial.print("VCC: ");
   Serial.println(vcc);
 #endif
   str[0] += ",V1:";
-  // str[0] += int(vcc * 10);
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
 
   int str_diff = 60 - str[0].length();
