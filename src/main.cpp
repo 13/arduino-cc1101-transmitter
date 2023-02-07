@@ -306,7 +306,7 @@ void loop()
          String length here to 60, thus packet length 61 */
       for (uint8_t j = str[i].length(); j < 56; j++)
       {
-        str[i] += " ";
+        str[i] += ".";
       }
 
       // Z: = +2
