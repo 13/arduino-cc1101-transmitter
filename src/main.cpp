@@ -209,6 +209,7 @@ void loop()
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
   float bmp280_altitude = bmp280.readAltitude(1013.25);
+  // float bmp280_altitude = 44330 * (1 - pow(bmp280_pressure / 1013.25, 0.1903));
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
