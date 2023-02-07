@@ -307,9 +307,10 @@ void loop()
       /* max length is 62 because of Arduino String last byte 00
          but 62 not good better use 61
          String length here to 60, thus packet length 61 */
-      for (uint8_t j = str[i].length(); j < 56; j++)
+         // 56
+      for (uint8_t j = str[i].length(); j < 55; j++)
       {
-        str[i] += " ";
+        str[i] += ".";
       }
 
       // Z: = +2
@@ -329,14 +330,16 @@ void loop()
 #ifdef VERBOSE
       Serial.println(F("[CC1101] Transmitting packet... "));
 #endif
-      int cc_tr_state = ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+      int cc_tr_state = 1;
+      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+      // ELECHOUSE_cc1101.SendData("Z:62,N:22,I:1,T2:186,T4:197,H4:350,P4:9527,A4:517,Q4:621,V1:34");
       if (cc_tr_state)
       {
 #ifdef VERBOSE
         Serial.println(F("[CC1101] Transmitting packet... OK"));
 #endif
         Serial.println(str[i]);
-#ifdef DEBUGX
+#ifdef DEBUG
         for (uint8_t k = 0; k < sizeof(byteArr); k++)
         {
           printHex(byteArr[k]);
@@ -356,6 +359,8 @@ void loop()
       // delay multi send
       if (str[i] != 0)
       {
+        delay(DS_D);
+      } else {
         delay(DS_D);
       }
     }
