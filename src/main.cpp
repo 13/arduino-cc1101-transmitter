@@ -342,12 +342,12 @@ void loop()
         Serial.println("");
 #endif
       }
-#ifdef VERBOSEX
-      /*else if (cc_tr_state == ERR_PACKET_TOO_LONG)
+#ifdef VERBOSE
+      else if (cc_tr_state == ERR_PACKET_TOO_LONG)
       {
         // the supplied packet was longer than 64 bytes
         Serial.println(F("ERR: too long!"));
-      }*/
+      }
 #endif
       else
       {
@@ -356,7 +356,6 @@ void loop()
         Serial.print(F("[CC1101] Transmitting packet... ERR, code "));
         Serial.println(cc_tr_state);
 #endif
-        // sleepDeep(DS_S);
       }
       // delay multi send
       if (str[i] != 0)
