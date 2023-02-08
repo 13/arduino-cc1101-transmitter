@@ -208,7 +208,6 @@ void loop()
 #ifdef SENSOR_TYPE_bmp280
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
-  float bmp280_altitude = bmp280.readAltitude(1013.25);
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
@@ -217,16 +216,12 @@ void loop()
     Serial.print(bmp280_temperature);
     Serial.print("C, ");
     Serial.print(bmp280_pressure);
-    Serial.print("Pa, ");
-    Serial.print(bmp280_altitude);
-    Serial.println("m");
+    Serial.println("Pa");
 #endif
     str[0] += ",T3:";
     str[0] += int(round(bmp280_temperature * 10));
     str[0] += ",P3:";
     str[0] += int(round(bmp280_pressure) / 10);
-    str[0] += ",A3:";
-    str[0] += int(round(bmp280_altitude));
   }
 #endif
 #ifdef SENSOR_TYPE_bme680
