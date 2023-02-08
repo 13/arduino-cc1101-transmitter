@@ -319,6 +319,7 @@ void loop()
       Serial.print(F("> DEBUG: "));
       Serial.println(str[i]);
 #endif
+      // Convert String to byte array
       // String to byte +1 string nul terminator 00 and overwrite
       byte byteArr[str[i].length() + 1];
       str[i].getBytes(byteArr, sizeof(byteArr));
