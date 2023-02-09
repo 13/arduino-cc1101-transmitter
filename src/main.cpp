@@ -235,7 +235,6 @@ void loop()
   float bme680_temperature = bme680.temperature;
   float bme680_humidity = bme680.humidity;
   float bme680_pressure = bme680.pressure / 100.0;
-  float bme680_altitude = bme680.readAltitude(1013.25);
   float bme680_gas = bme680.gas_resistance / 1000.0;
   if (!isnan(bme680_temperature))
   {
@@ -248,8 +247,6 @@ void loop()
     Serial.print("%, ");
     Serial.print(bme680_pressure);
     Serial.print("hPa, ");
-    Serial.print(bme680_altitude);
-    Serial.print("m, ");
     Serial.print(bme680_gas);
     Serial.println("KOhms");
 #endif
@@ -259,8 +256,6 @@ void loop()
     str[0] += int(round(bme680_humidity * 10));
     str[0] += ",P4:";
     str[0] += int(round(bme680_pressure * 10));
-    str[0] += ",A4:";
-    str[0] += int(round(bme680_altitude));
     str[0] += ",Q4:";
     str[0] += int(round(bme680_gas));
   }
