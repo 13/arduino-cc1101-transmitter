@@ -208,6 +208,7 @@ void loop()
 #ifdef SENSOR_TYPE_bmp280
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
+  float bmp280_temp_correction = 1.0;
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
@@ -219,7 +220,7 @@ void loop()
     Serial.println("Pa");
 #endif
     str[0] += ",T3:";
-    str[0] += int(round(bmp280_temperature * 10));
+    str[0] += int(round((bmp280_temperature - bmp280_temp_correction) * 10));
     str[0] += ",P3:";
     str[0] += int(round(bmp280_pressure) / 10);
   }
