@@ -46,6 +46,9 @@ Adafruit_BME680 bme680 = Adafruit_BME680();
 
 // counter
 #ifdef DEBUG
+#define PACKET_COUNT
+#endif
+#ifdef PACKET_COUNT
 uint16_t msgCounter = 1;
 #endif
 
@@ -65,6 +68,8 @@ void setup()
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
   Serial.println(F(__TIMESTAMP__));
+  // LED off
+  pinMode(13, OUTPUT);
 
 // Start CC1101
 #ifdef VERBOSE
@@ -91,8 +96,9 @@ void setup()
     Serial.print(F("ERR "));
     Serial.println(cc_state);
 #endif
-    sleepDeep(DS_S);
+    // sleepDeep(DS_S);
   }
+  digitalWrite(13, LOW);
 
   // voltage
   vRef.begin();
@@ -143,7 +149,7 @@ void loop()
   String str[3];
   str[0] = ",N:";
   str[0] += String(getUniqueID(), HEX);
-#ifdef DEBUG
+#ifdef PACKET_COUNT
   str[0] += ",I:";
   str[0] += msgCounter;
 #endif
@@ -211,7 +217,6 @@ void loop()
 #ifdef SENSOR_TYPE_bmp280
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
-  float bmp280_altitude = bmp280.readAltitude(1013.25);
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
@@ -221,15 +226,11 @@ void loop()
     Serial.print("C, ");
     Serial.print(bmp280_pressure);
     Serial.print("Pa, ");
-    Serial.print(bmp280_altitude);
-    Serial.println("m");
 #endif
     str[0] += ",T3:";
     str[0] += int(round(bmp280_temperature * 10));
     str[0] += ",P3:";
     str[0] += int(round(bmp280_pressure) / 10);
-    str[0] += ",A3:";
-    str[0] += int(round(bmp280_altitude));
   }
 #endif
 #ifdef SENSOR_TYPE_bme680
@@ -243,7 +244,6 @@ void loop()
   float bme680_temperature = bme680.temperature;
   float bme680_humidity = bme680.humidity;
   float bme680_pressure = bme680.pressure / 100.0;
-  float bme680_altitude = bme680.readAltitude(1013.25);
   float bme680_gas = bme680.gas_resistance / 1000.0;
   if (!isnan(bme680_temperature))
   {
@@ -256,8 +256,6 @@ void loop()
     Serial.print("%, ");
     Serial.print(bme680_pressure);
     Serial.print("hPa, ");
-    Serial.print(bme680_altitude);
-    Serial.print("m, ");
     Serial.print(bme680_gas);
     Serial.println("KOhms");
 #endif
@@ -267,8 +265,6 @@ void loop()
     str[0] += int(round(bme680_humidity * 10));
     str[0] += ",P4:";
     str[0] += int(round(bme680_pressure * 10));
-    str[0] += ",A4:";
-    str[0] += int(round(bme680_altitude));
     str[0] += ",Q4:";
     str[0] += int(round(bme680_gas));
   }
@@ -282,10 +278,20 @@ void loop()
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
 
-  int str_diff = 60 - str[0].length();
+#ifdef DEBUG
+  Serial.print(F("> DEBUG: String Length "));
+  Serial.println(str[0].length());
+#endif
+
+  // Split packets
+  // maxPacketSize (61) - leadingTupleLength ('Z:44')
+  // 61 - 4 = [57]
+  int str_diff = 57 - str[0].length();
+  int strCount = 1;
 
   if (str_diff < 0)
   {
+    strCount = 3;
 #ifdef VERBOSE
     Serial.print(F("> String too long: "));
     Serial.println(str[0].length());
@@ -296,79 +302,50 @@ void loop()
 #endif
     int str_middle = str[0].indexOf(",", str_middle + str[0].length() / 2);
     str[1] = str[0].substring(0, str_middle);
-    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) + ',' + str[0].substring(str_middle + 1);
+    // Increase the packet counter in the splitted second part
+#ifdef PACKET_COUNT
+    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",", str[0].indexOf(",") + 1) + 1)) +
+             ',' + str[0].substring(str_middle + 1);
+#else
+    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) +
+             ',' + str[0].substring(str_middle + 1);
+#endif
     str[0] = "";
   }
 
-  for (uint8_t i = 0; i < 3; i++)
+  for (uint8_t i = 0; i < strCount; i++)
   {
     if (str[i].length() != 0)
     {
-      /* max length is 62 because of Arduino String last byte 00
-         but 62 not good better use 61
-         String length here to 60, thus packet length 61 */
-         // 56
-      for (uint8_t j = str[i].length(); j < 55; j++)
-      {
-        str[i] += ".";
-      }
-
-      // Z: = +2
+      // Add leadingTuple 'Z:' with length of String
       str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
       Serial.print(F("> DEBUG: "));
       Serial.println(str[i]);
 #endif
-      // Convert String to byte array
-      // String to byte +1 string nul terminator 00 and overwrite
-      byte byteArr[str[i].length() + 1];
-      str[i].getBytes(byteArr, sizeof(byteArr));
-      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
+
 #ifdef VERBOSE
+      Serial.print(F("[CC1101] Transmitting packet... "));
+#endif
+
+      // Transmit char format
+      char charArray[str[i].length() + 1];
+      str[i].toCharArray(charArray, str[i].length() + 1);
+      ELECHOUSE_cc1101.SendData(charArray);
+
+#ifdef VERBOSE
+      Serial.println(F("OK"));
       Serial.print(F("> Packet Length: "));
-      Serial.println(sizeof(byteArr) / sizeof(byteArr[0])); // +1
+      Serial.println(strlen(charArray));
 #endif
-#ifdef VERBOSE
-      Serial.println(F("[CC1101] Transmitting packet... "));
-#endif
-      int cc_tr_state = 1;
-      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-      // ELECHOUSE_cc1101.SendData("Z:62,N:22,I:1,T2:186,T4:197,H4:350,P4:9527,A4:517,Q4:621,V1:34");
-      if (cc_tr_state)
-      {
-#ifdef VERBOSE
-        Serial.println(F("[CC1101] Transmitting packet... OK"));
-#endif
-        Serial.println(str[i]);
-#ifdef DEBUG
-        for (uint8_t k = 0; k < sizeof(byteArr); k++)
-        {
-          printHex(byteArr[k]);
-        }
-        Serial.println("");
-#endif
-      }
-      else
-      {
-#ifdef VERBOSE
-        // some other error occurred
-        Serial.print(F("[CC1101] Transmitting packet... ERR, code "));
-        Serial.println(cc_tr_state);
-#endif
-        sleepDeep(DS_D);
-      }
-      // delay multi send
-      if (str[i] != 0)
-      {
-        delay(DS_D);
-      } else {
-        delay(DS_D);
-      }
+      Serial.println(str[i]);
     }
+    // delay multi send
+    delay(DS_D);
   }
   sleepDeep(DS_L);
 
-#ifdef DEBUG
+#ifdef PACKET_COUNT
   msgCounter++;
 #endif
 }
@@ -444,12 +421,3 @@ void sleepDeep(uint8_t t)
     LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
   }
 }
-
-#ifdef DEBUG
-void printHex(uint8_t num)
-{
-  char hexCar[2];
-  sprintf(hexCar, "%02X", num);
-  Serial.print(hexCar);
-}
-#endif
