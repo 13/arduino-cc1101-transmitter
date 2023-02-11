@@ -43,6 +43,9 @@ Adafruit_BMP280 bmp280;
 #ifdef SENSOR_TYPE_bme680
 Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
+#ifdef SENSOR_TYPE_pir
+boolean pir_state = false;
+#endif
 
 // counter
 #ifdef DEBUG
@@ -53,8 +56,10 @@ uint16_t msgCounter = 1;
 #endif
 
 int getUniqueID();
+void sleepDeep();
 void sleepDeep(uint8_t t);
 void printHex(uint8_t num);
+void wakeInterrupt();
 
 void setup()
 {
@@ -137,14 +142,19 @@ void setup()
 
 // pir
 #ifdef SENSOR_TYPE_pir
+#ifdef VERBOSE
+  Serial.print(SENSOR_TYPE_pir);
+  Serial.print(": ");
+  Serial.println(" OK");
+#endif
   pinMode(SENSOR_PIN_PIR, INPUT);
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterrupt, FALLING);
   sleepDeep();
 #endif
 }
 
 void loop()
 {
-
   // prepare msg string
   String str[3];
   str[0] = ",N:";
@@ -155,19 +165,16 @@ void loop()
 #endif
 
 #ifdef SENSOR_TYPE_pir
-  if (digitalRead(SENSOR_PIN_PIR) == HIGH)
-  {
-    boolean pir_state = true;
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_pir);
-    Serial.print(": ");
-    Serial.println(pir_state);
+  Serial.print(SENSOR_TYPE_pir);
+  Serial.print(": ");
+  Serial.println(pir_state);
 #endif
-    if (pir_state)
-    {
-      str[0] += ",M1:";
-      str[0] += int(pir_state);
-    }
+  if (pir_state)
+  {
+    str[0] += ",M1:";
+    str[0] += int(pir_state);
+    pir_state = false;
   }
 #endif
 
@@ -343,7 +350,11 @@ void loop()
     // delay multi send
     delay(DS_D);
   }
+#ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#else
   sleepDeep(DS_L);
+#endif
 
 #ifdef PACKET_COUNT
   msgCounter++;
@@ -421,3 +432,11 @@ void sleepDeep(uint8_t t)
     LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
   }
 }
+
+#ifdef SENSOR_TYPE_pir
+void wakeInterrupt()
+{
+  pir_state = true;
+  loop();
+}
+#endif
