@@ -84,7 +84,7 @@ void setup()
 #endif
 
   // LED off
-  pinMode(13, OUTPUT);
+  // pinMode(13, OUTPUT);
 
   // Start CC1101
 #ifdef VERBOSE
@@ -98,7 +98,6 @@ void setup()
     Serial.println(F("OK"));
 #endif
     ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
-    digitalWrite(13, LOW);   // Fix turn LED off
 #ifdef GD0
     ELECHOUSE_cc1101.setGDO0(GD0); // set lib internal gdo pin (gdo0). Gdo2 not use for this example.
 #endif
@@ -119,7 +118,7 @@ void setup()
     ELECHOUSE_cc1101.setLengthConfig(1);    // 0 = Fixed packet length mode. 1 = Variable packet length mode. 2 = Infinite packet length mode. 3 = Reserved
     ELECHOUSE_cc1101.setPacketLength(0);    // Indicates the packet length when fixed packet length mode is enabled. If variable packet length mode is used, this value indicates the maximum packet length allowed.
     ELECHOUSE_cc1101.setCrc(1);             // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
-    ELECHOUSE_cc1101.setCRC_AF(0);          // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
+    ELECHOUSE_cc1101.setCRC_AF(1);          // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
     ELECHOUSE_cc1101.setDcFilterOff(0);     // Disable digital DC blocking filter before demodulator. Only for data rates ≤ 250 kBaud The recommended IF frequency changes when the DC blocking is disabled. 1 = Disable (current optimized). 0 = Enable (better sensitivity).
     ELECHOUSE_cc1101.setManchester(0);      // Enables Manchester encoding/decoding. 0 = Disable. 1 = Enable.
     ELECHOUSE_cc1101.setFEC(0);             // Enable Forward Error Correction (FEC) with interleaving for packet payload (Only supported for fixed packet length mode. 0 = Disable. 1 = Enable.
@@ -361,6 +360,13 @@ void loop()
   {
     if (str[i].length() != 0)
     {
+#ifdef FILL_STRING
+      // Fill to String length 57, thus total is 61
+      for (uint8_t j = str[i].length(); j < 56; j++)
+      {
+        str[i] += ".";
+      }
+#endif
       // Add leadingTuple 'Z:' with length of String
       str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
@@ -375,20 +381,40 @@ void loop()
       Serial.print(F("[CC1101]: Transmitting packet... "));
 #endif
 #endif
-      // Transmit char format
-      char charArray[str[i].length() + 1];
-      str[i].toCharArray(charArray, str[i].length() + 1);
+
+#ifdef SEND_BYTE
+      // Transmit byte format
+      byte byteArr[str[i].length() + 1];
+      str[i].getBytes(byteArr, str[i].length() + 1);
+      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
 #ifdef GD0
-      ELECHOUSE_cc1101.SendData(charArray);
+      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
 #else
-      ELECHOUSE_cc1101.SendData(charArray, CC_DELAY);
+      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
+#endif
+#endif
+
+#ifdef SEND_CHAR
+      // Transmit char format
+      char charArr[str[i].length() + 1];
+      str[i].toCharArray(charArr, str[i].length() + 1);
+#ifdef GD0
+      ELECHOUSE_cc1101.SendData(charArr);
+#else
+      ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
+#endif
 #endif
 
 #ifdef VERBOSE
 #ifdef DEBUG
       Serial.println(F("[CC1101]: Transmitting packet... OK"));
       Serial.print(F("> Packet Length: "));
-      Serial.println(strlen(charArray));
+#ifdef SEND_CHAR
+      Serial.println(strlen(charArr));
+#endif
+#ifdef SEND_BYTE
+      Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
+#endif
 #else
       Serial.println(F("OK"));
 #endif
@@ -470,6 +496,7 @@ void sleepDeep(uint8_t t)
     Serial.println("min...");
   }
   // endif
+  digitalWrite(13, LOW); // Fix turn LED off
   delay(DS_D);
   if (t > 0)
   {
