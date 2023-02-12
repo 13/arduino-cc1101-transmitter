@@ -173,13 +173,11 @@ void setup()
 
 // pir
 #ifdef SENSOR_TYPE_pir
-#ifdef VERBOSE
   Serial.print(SENSOR_TYPE_pir);
   Serial.print(": ");
   Serial.println(" OK");
-#endif
   pinMode(SENSOR_PIN_PIR, INPUT);
-  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterrupt, RISING);
   sleepDeep();
 #endif
 }
@@ -489,6 +487,7 @@ void sleepDeep(uint8_t t)
 #ifdef SENSOR_TYPE_pir
 void wakeInterrupt()
 {
+  Serial.println("Wakeup interrupt...");
   pir_state = true;
   loop();
 }
