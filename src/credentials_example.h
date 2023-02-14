@@ -28,3 +28,6 @@
 #ifdef SENSOR_TYPE_pir
 #define SENSOR_PIN_PIR 3
 #endif
+
+// Git
+#define GIT_VERSION __GIT_VERSION__

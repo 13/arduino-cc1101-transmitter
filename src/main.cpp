@@ -71,6 +71,8 @@ void setup()
   Serial.println(F("> "));
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
+  Serial.print(GIT_VERSION);
+  Serial.print(" ")
   Serial.println(F(__TIMESTAMP__));
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
@@ -82,9 +84,6 @@ void setup()
 #ifdef GD0
   Serial.print(F("GD0"));
 #endif
-
-  // LED off
-  // pinMode(13, OUTPUT);
 
   // Start CC1101
 #ifdef VERBOSE
@@ -260,18 +259,19 @@ void loop()
 #ifdef SENSOR_TYPE_bmp280
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
+  float bmp280_temp_offset = 0;
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bmp280);
     Serial.print(": ");
-    Serial.print(bmp280_temperature);
+    Serial.print(bmp280_temperature - bmp280_temp_offset);
     Serial.print("C, ");
     Serial.print(bmp280_pressure);
     Serial.println("Pa");
 #endif
     str[0] += ",T3:";
-    str[0] += int(round(bmp280_temperature * 10));
+    str[0] += int(round((bmp280_temperature + bmp280_temp_offset) * 10));
     str[0] += ",P3:";
     str[0] += int(round(bmp280_pressure) / 10);
   }
