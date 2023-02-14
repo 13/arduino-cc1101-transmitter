@@ -29,5 +29,7 @@
 #define SENSOR_PIN_PIR 3
 #endif
 
-// Git
-#define GIT_VERSION __GIT_VERSION__
+// GIT
+#ifndef __GIT_VERSION__
+#define __GIT_VERSION__ "unknown"
+#endif
