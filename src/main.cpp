@@ -27,7 +27,7 @@
 // voltage
 VoltageReference vRef;
 // wakeup
-boolean wakeup = false;
+boolean wakeup_state = false;
 
 #ifdef SENSOR_TYPE_si7021
 Adafruit_Si7021 si = Adafruit_Si7021();
@@ -182,13 +182,13 @@ void setup()
 
 void loop()
 {
-  if (wakeup)
+  if (wakeup_state)
   {
     Serial.println("Wakeup...");
   }
   else
   {
-    wakeup = true;
+    wakeup_state = true;
   }
   // prepare msg string
   String str[3];
