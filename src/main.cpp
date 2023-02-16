@@ -47,7 +47,7 @@ boolean pir_state = false;
 #endif
 
 // counter
-#ifdef DEBUG
+#ifdef VERBOSE
 #define PACKET_COUNT
 #endif
 #ifdef PACKET_COUNT
@@ -71,11 +71,7 @@ void setup()
   Serial.println(F("> "));
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
-  Serial.print(__GIT_VERSION__);
-  Serial.print(" ");
-  Serial.print(F(__DATE__));
-  Serial.print(" ");
-  Serial.println(F(__TIME__));
+  Serial.println(GIT_VERSION);
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
   Serial.print(F("VERBOSE "));
@@ -436,7 +432,14 @@ void loop()
 #endif
 
 #ifdef PACKET_COUNT
-  msgCounter++;
+  if (msgCounter < 65534)
+  {
+    msgCounter++;
+  }
+  else
+  {
+    msgCounter = 0;
+  }
 #endif
 }
 

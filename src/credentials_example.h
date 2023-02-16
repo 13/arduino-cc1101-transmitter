@@ -7,15 +7,19 @@
 // #define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
-// #define VERBOSE
+#define VERBOSE
 // #define DEBUG
 // #define GD0 2 // Disable for new method without GD0
 #define CC_FREQ 868.32
 #define CC_POWER 10
 #define CC_DELAY 100 // [100]
 
+// Type
+#define SEND_CHAR
+// #define SEND_BYTE
+
 // Deep sleep
-#define DS_L 3   // long [3]
+#define DS_L 255 // long [3]
 #define DS_S 255 // short [255]
 #define DS_D 100 // delay before sleep 70 [100] 500
 
@@ -30,6 +34,6 @@
 #endif
 
 // GIT
-#ifndef __GIT_VERSION__
-#define __GIT_VERSION__ "unknown"
+#ifndef GIT_VERSION
+#define GIT_VERSION "unknown"
 #endif
