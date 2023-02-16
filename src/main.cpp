@@ -98,6 +98,7 @@ void setup()
 #endif
   SPI.begin();
   radio.begin(CC_FREQ);
+  radio.setRXstate();
 #ifdef VERBOSE
     Serial.println(F("OK"));
 #endif
@@ -350,26 +351,31 @@ void loop()
 #endif
 #endif
 
-#ifdef SEND_CHAR
       // Transmit char format
       char charArr[str[i].length() + 1];
       str[i].toCharArray(charArr, str[i].length() + 1);
 
       bool send_packet = radio.sendPacket(charArr);
-#endif
-
+      if (send_packet){
 #ifdef VERBOSE
 #ifdef DEBUG
       Serial.println(F("[CC1101]: Transmitting packet... OK"));
       Serial.print(F("> Packet Length: "));
-#ifdef SEND_CHAR
       Serial.println(strlen(charArr));
-#endif
 #else
       Serial.println(F("OK"));
 #endif
 #endif
       Serial.println(str[i]);
+    } else {
+#ifdef VERBOSE
+#ifdef DEBUG
+      Serial.println(F("[CC1101]: Transmitting packet... ERR"));
+#else
+      Serial.println(F("ERR"));
+#endif
+#endif
+    }
     }
     // delay multi send
     if (strCount > 1)
