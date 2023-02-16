@@ -11,7 +11,7 @@
 // #define DEBUG
 // #define GD0 2 // Disable for new method without GD0
 #define CC_FREQ 868.32
-#define CC_POWER 10
+#define CC_POWER 12
 #define CC_DELAY 100 // [100]
 
 // Type
