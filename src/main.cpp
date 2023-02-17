@@ -2,10 +2,13 @@
 #include <EEPROM.h>
 #include <LowPower.h>
 #include <VoltageReference.h>
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
+#include <RadioLib.h>
 #include <credentials.h>
 
 // Edit credentials.h
+
+// cc1101
+CC1101 radio = new Module(10, GD0, RADIOLIB_NC, 3);
 
 #ifdef SENSOR_TYPE_si7021
 #include <Adafruit_Si7021.h>
@@ -88,23 +91,12 @@ void setup()
   Serial.println();
   Serial.print(F("[CC1101]: Initializing... "));
 #endif
-  int cc_state = ELECHOUSE_cc1101.getCC1101();
-  if (cc_state)
+  int cc_state = radio.begin(CC_FREQ);
+  if (cc_state == RADIOLIB_ERR_NONE)
   {
 #ifdef VERBOSE
     Serial.println(F("OK"));
 #endif
-    ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
-#ifdef GD0
-    ELECHOUSE_cc1101.setGDO0(GD0); // set lib internal gdo pin (gdo0). Gdo2 not use for this example.
-#endif
-    ELECHOUSE_cc1101.setCCMode(1);     // set config for internal transmission mode.
-    ELECHOUSE_cc1101.setModulation(0); // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
-    ELECHOUSE_cc1101.setMHZ(CC_FREQ);  // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
-    ELECHOUSE_cc1101.setPA(CC_POWER);  // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-    ELECHOUSE_cc1101.setSyncMode(2);   // Combined sync-word qualifier mode. 0 = No preamble/sync. 1 = 16 sync word bits detected. 2 = 16/16 sync word bits detected. 3 = 30/32 sync word bits detected. 4 = No preamble/sync, carrier-sense above threshold. 5 = 15/16 + carrier-sense above threshold. 6 = 16/16 + carrier-sense above threshold. 7 = 30/32 + carrier-sense above threshold.
-    ELECHOUSE_cc1101.setCrc(1);        // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
-    ELECHOUSE_cc1101.setCRC_AF(1);     // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
   }
   else
   {
@@ -368,44 +360,43 @@ void loop()
       byte byteArr[str[i].length() + 1];
       str[i].getBytes(byteArr, str[i].length() + 1);
       byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
-#ifdef GD0
-      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-#else
-      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
-#endif
+      int state = radio.transmit(byteArr, sizeof(byteArr));
 #endif
 
 #ifdef SEND_CHAR
       // Transmit char format
       char charArr[str[i].length() + 1];
       str[i].toCharArray(charArr, str[i].length() + 1);
-#ifdef GD0
-      ELECHOUSE_cc1101.SendData(charArr);
-#else
-      ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
-#endif
-#endif
 
+      int state = radio.transmit(charArr);
+#endif
+      if (state == RADIOLIB_ERR_NONE)
+      {
 #ifdef VERBOSE
 #ifdef DEBUG
-      Serial.println(F("[CC1101]: Transmitting packet... OK"));
-      Serial.print(F("> Packet Length: "));
+        Serial.println(F("[CC1101]: Transmitting packet... OK"));
+        Serial.print(F("> Packet Length: "));
 #ifdef SEND_CHAR
-      Serial.println(strlen(charArr));
+        Serial.println(strlen(charArr));
 #endif
 #ifdef SEND_BYTE
-      Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
+        Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
 #endif
 #else
-      Serial.println(F("OK"));
+        Serial.println(F("OK"));
 #endif
 #endif
-      Serial.println(str[i]);
+        Serial.println(str[i]);
+      }
+      // delay multi send
+      if (strCount > 1)
+      {
+        delay(CC_DELAY);
+      }
     }
-    // delay multi send
-    if (strCount > 1)
+    else
     {
-      delay(CC_DELAY);
+      Serial.println(F("ERR"));
     }
   }
 #ifdef SENSOR_TYPE_pir
