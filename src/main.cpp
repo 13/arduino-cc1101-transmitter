@@ -105,6 +105,8 @@ void setup()
     ELECHOUSE_cc1101.setSyncMode(2);   // Combined sync-word qualifier mode. 0 = No preamble/sync. 1 = 16 sync word bits detected. 2 = 16/16 sync word bits detected. 3 = 30/32 sync word bits detected. 4 = No preamble/sync, carrier-sense above threshold. 5 = 15/16 + carrier-sense above threshold. 6 = 16/16 + carrier-sense above threshold. 7 = 30/32 + carrier-sense above threshold.
     ELECHOUSE_cc1101.setCrc(1);        // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
     ELECHOUSE_cc1101.setCRC_AF(1);     // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
+    // ELECHOUSE_cc1101.setAdrChk(1);     // Controls address check configuration of received packages. 0 = No address check. 1 = Address check, no broadcast. 2 = Address check and 0 (0x00) broadcast. 3 = Address check and 0 (0x00) and 255 (0xFF) broadcast.
+    // ELECHOUSE_cc1101.setAddr(0);       // Address used for packet filtration. Optional broadcast addresses are 0 (0x00) and 255 (0xFF).
   }
   else
   {
@@ -408,11 +410,6 @@ void loop()
       delay(CC_DELAY);
     }
   }
-#ifdef SENSOR_TYPE_pir
-  sleepDeep();
-#else
-  sleepDeep(DS_L);
-#endif
 
 #ifdef PACKET_COUNT
   if (msgCounter < 65534)
@@ -423,6 +420,12 @@ void loop()
   {
     msgCounter = 0;
   }
+#endif
+
+#ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#else
+  sleepDeep(DS_L);
 #endif
 }
 
