@@ -106,6 +106,25 @@ void setup()
 #endif
     sleepDeep(DS_S);
   }
+  // Start CC1101
+#ifdef VERBOSE
+  Serial.print(F("[CC1101]: Enabling Address Filtering... "));
+#endif
+  int cc_af_state = radio.setNodeAddress(0x01, 1);
+  if (cc_af_state == RADIOLIB_ERR_NONE)
+  {
+#ifdef VERBOSE
+    Serial.println(F("OK"));
+#endif
+  }
+  else
+  {
+#ifdef VERBOSE
+    Serial.print(F("ERR "));
+    Serial.println(cc_af_state);
+#endif
+    sleepDeep(DS_S);
+  }
 
   // voltage
   vRef.begin();
@@ -373,7 +392,6 @@ void loop()
       if (state == RADIOLIB_ERR_NONE)
       {
 #ifdef VERBOSE
-#ifdef DEBUG
         Serial.println(F("[CC1101]: Transmitting packet... OK"));
         Serial.print(F("> Packet Length: "));
 #ifdef SEND_CHAR
@@ -382,9 +400,7 @@ void loop()
 #ifdef SEND_BYTE
         Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
 #endif
-#else
         Serial.println(F("OK"));
-#endif
 #endif
         Serial.println(str[i]);
       }
@@ -399,11 +415,6 @@ void loop()
       Serial.println(F("ERR"));
     }
   }
-#ifdef SENSOR_TYPE_pir
-  sleepDeep();
-#else
-  sleepDeep(DS_L);
-#endif
 
 #ifdef PACKET_COUNT
   if (msgCounter < 65534)
@@ -414,6 +425,12 @@ void loop()
   {
     msgCounter = 0;
   }
+#endif
+
+#ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#else
+  sleepDeep(DS_L);
 #endif
 }
 
@@ -475,7 +492,7 @@ void sleepDeep(uint8_t t)
     Serial.println("min...");
   }
   // endif
-  digitalWrite(13, LOW); // Fix turn LED off
+  // digitalWrite(13, LOW); // Fix turn LED off
   delay(DS_D);
   if (t > 0)
   {
