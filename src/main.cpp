@@ -377,15 +377,35 @@ void loop()
 #ifdef SEND_BYTE
       // Transmit byte format
       byte byteArr[str[i].length() + 1];
-      str[i].getBytes(byteArr, str[i].length() + 1);
-      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
+      str[i].getBytes(byteArr, str[i].length());
+      // byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '\0'; // 0 \0
+
+      for (uint8_t i = 0; i < sizeof(byteArr); i++)
+      {
+        Serial.print(byteArr[i], HEX);
+      }
+      Serial.println();
+
+      for (uint8_t i = 0; i < sizeof(byteArr); i++)
+      {
+        Serial.print((char)byteArr[i]);
+      }
+      Serial.println();
+
       int state = radio.transmit(byteArr, sizeof(byteArr));
 #endif
 
 #ifdef SEND_CHAR
       // Transmit char format
-      char charArr[str[i].length() + 1];
-      str[i].toCharArray(charArr, str[i].length() + 1);
+      char charArr[str[i].length() + 1]; // + 1
+      str[i].toCharArray(charArr, str[i].length() + 1); // + 1
+      // charArr[sizeof(charArr) / sizeof(charArr[0]) - 1] = '\0'; // 0 \0
+
+      for (uint8_t i = 0; i < sizeof(charArr); i++)
+      {
+        Serial.print(charArr[i]);
+      }
+      Serial.println();
 
       int state = radio.transmit(charArr);
 #endif
