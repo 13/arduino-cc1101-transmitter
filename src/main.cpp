@@ -54,11 +54,88 @@ boolean pir_state = false;
 uint16_t msgCounter = 1;
 #endif
 
-int getUniqueID();
-void sleepDeep();
-void sleepDeep(uint8_t t);
-void printHex(uint8_t num);
-void wakeInterrupt();
+// supplementary functions
+// Last 4 digits of ChipID
+int getUniqueID()
+{
+  int uid = 0;
+  // read EEPROM serial number
+  int address = 13;
+  int serialNumber;
+  if (EEPROM.read(address) != 255)
+  {
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+#ifdef DEBUG
+    Serial.print("[EEPROM]: SN ");
+    Serial.print(uid);
+    Serial.print(" -> HEX ");
+    Serial.println(String(serialNumber, HEX));
+#endif
+  }
+#ifdef DEBUG
+  else
+  {
+    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
+  }
+#endif
+  return uid;
+}
+
+/*
+   sleep
+   1 - 254 minutes
+   255 = 8 seconds
+   0, empty = forever
+*/
+void sleepDeep()
+{
+  sleepDeep(0);
+}
+void sleepDeep(uint8_t t)
+{
+  uint8_t m = 60;
+  // #ifdef VERBOSE
+  Serial.print("Deep Sleep ");
+  if (t < 1)
+  {
+    Serial.println("forever...");
+  }
+  else if (t > 254)
+  {
+    t = 1;
+    m = 8;
+    Serial.println("8s...");
+  }
+  else
+  {
+    Serial.print(t);
+    Serial.println("min...");
+  }
+  // endif
+  digitalWrite(13, LOW); // Fix turn LED off
+  delay(DS_D);
+  if (t > 0)
+  {
+    for (int8_t i = 0; i < (t * m / 8); i++)
+    {
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    }
+  }
+  else
+  {
+    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+  }
+}
+
+#ifdef SENSOR_TYPE_pir
+void wakeInterrupt()
+{
+  Serial.println("Wakeup interrupt...");
+  pir_state = true;
+  loop();
+}
+#endif
 
 void setup()
 {
@@ -74,18 +151,18 @@ void setup()
   Serial.println(GIT_VERSION);
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
-  Serial.print(F("VERBOSE "));
-#endif
-#ifdef DEBUG
-  Serial.print(F("DEBUG "));
-#endif
 #ifdef GD0
-  Serial.print(F("GD0"));
+  Serial.print(F("GD0 "));
+#endif
+  Serial.print(F("VERBOSE "));
+#ifdef DEBUG
+  Serial.print(F("DEBUG"));
+#endif
+  Serial.println();
 #endif
 
   // Start CC1101
 #ifdef VERBOSE
-  Serial.println();
   Serial.print(F("[CC1101]: Initializing... "));
 #endif
   int cc_state = ELECHOUSE_cc1101.getCC1101();
@@ -428,85 +505,3 @@ void loop()
   sleepDeep(DS_L);
 #endif
 }
-
-// Last 4 digits of ChipID
-int getUniqueID()
-{
-  int uid = 0;
-  // read EEPROM serial number
-  int address = 13;
-  int serialNumber;
-  if (EEPROM.read(address) != 255)
-  {
-    EEPROM.get(address, serialNumber);
-    uid = serialNumber;
-#ifdef DEBUG
-    Serial.print("[EEPROM]: SN ");
-    Serial.print(uid);
-    Serial.print(" -> HEX ");
-    Serial.println(String(serialNumber, HEX));
-#endif
-  }
-#ifdef DEBUG
-  else
-  {
-    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
-  }
-#endif
-  return uid;
-}
-
-/*
-   sleep
-   1 - 254 minutes
-   255 = 8 seconds
-   0, empty = forever
-*/
-void sleepDeep()
-{
-  sleepDeep(0);
-}
-void sleepDeep(uint8_t t)
-{
-  uint8_t m = 60;
-  // #ifdef VERBOSE
-  Serial.print("Deep Sleep ");
-  if (t < 1)
-  {
-    Serial.println("forever...");
-  }
-  else if (t > 254)
-  {
-    t = 1;
-    m = 8;
-    Serial.println("8s...");
-  }
-  else
-  {
-    Serial.print(t);
-    Serial.println("min...");
-  }
-  // endif
-  digitalWrite(13, LOW); // Fix turn LED off
-  delay(DS_D);
-  if (t > 0)
-  {
-    for (int8_t i = 0; i < (t * m / 8); i++)
-    {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    }
-  }
-  else
-  {
-    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
-  }
-}
-
-#ifdef SENSOR_TYPE_pir
-void wakeInterrupt()
-{
-  Serial.println("Wakeup interrupt...");
-  pir_state = true;
-  loop();
-}
-#endif
