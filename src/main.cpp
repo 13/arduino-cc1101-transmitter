@@ -386,6 +386,10 @@ void loop()
 #endif
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
+  
+  // Firmware version
+  str[0] += ",F:";
+  str[0] += String(GIT_VERSION_SHORT);
 
 #ifdef DEBUG
   Serial.print(F("> DEBUG: String Length "));
