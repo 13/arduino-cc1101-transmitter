@@ -88,10 +88,6 @@ int getUniqueID()
    255 = 8 seconds
    0, empty = forever
 */
-void sleepDeep()
-{
-  sleepDeep(0);
-}
 void sleepDeep(uint8_t t)
 {
   uint8_t m = 60;
@@ -113,7 +109,7 @@ void sleepDeep(uint8_t t)
     Serial.println("min...");
   }
   // endif
-  digitalWrite(13, LOW); // Fix turn LED off
+  // digitalWrite(13, LOW); // Fix turn LED off
   delay(DS_D);
   if (t > 0)
   {
@@ -126,6 +122,10 @@ void sleepDeep(uint8_t t)
   {
     LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
   }
+}
+void sleepDeep()
+{
+  sleepDeep(0);
 }
 
 #ifdef SENSOR_TYPE_pir
@@ -153,6 +153,12 @@ void setup()
   Serial.print(("> Mode: "));
 #ifdef GD0
   Serial.print(F("GD0 "));
+#endif
+#ifdef SEND_CHAR
+  Serial.print(F("CHAR "));
+#endif
+#ifdef SEND_BYTE
+  Serial.print(F("BYTE "));
 #endif
   Serial.print(F("VERBOSE "));
 #ifdef DEBUG
@@ -193,7 +199,7 @@ void setup()
 #endif
     sleepDeep(DS_S);
   }
-
+  digitalWrite(13, LOW); // Fix turn LED off
   // voltage
   vRef.begin();
 
