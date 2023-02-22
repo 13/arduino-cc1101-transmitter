@@ -493,6 +493,17 @@ void loop()
 #endif
         Serial.println(str[i]);
       }
+      else if (state == RADIOLIB_ERR_PACKET_TOO_LONG)
+      {
+        // the supplied packet was longer than 255 bytes
+        Serial.println(F("too long!"));
+      }
+      else
+      {
+        // some other error occurred
+        Serial.print(F("failed, code "));
+        Serial.println(state);
+      }
       // delay multi send
       if (strCount > 1)
       {
