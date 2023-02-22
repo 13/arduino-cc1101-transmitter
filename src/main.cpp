@@ -57,11 +57,87 @@ boolean pir_state = false;
 uint16_t msgCounter = 1;
 #endif
 
-int getUniqueID();
-void sleepDeep();
-void sleepDeep(uint8_t t);
-void printHex(uint8_t num);
-void wakeInterrupt();
+// Last 4 digits of ChipID
+int getUniqueID()
+{
+  int uid = 0;
+  // read EEPROM serial number
+  int address = 13;
+  int serialNumber;
+  if (EEPROM.read(address) != 255)
+  {
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+#ifdef DEBUG
+    Serial.print("[EEPROM]: SN ");
+    Serial.print(uid);
+    Serial.print(" -> HEX ");
+    Serial.println(String(serialNumber, HEX));
+#endif
+  }
+#ifdef DEBUG
+  else
+  {
+    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
+  }
+#endif
+  return uid;
+}
+
+/*
+   sleep
+   1 - 254 minutes
+   255 = 8 seconds
+   0, empty = forever
+*/
+void sleepDeep(uint8_t t)
+{
+  uint8_t m = 60;
+  // #ifdef VERBOSE
+  Serial.print("Deep Sleep ");
+  if (t < 1)
+  {
+    Serial.println("forever...");
+  }
+  else if (t > 254)
+  {
+    t = 1;
+    m = 8;
+    Serial.println("8s...");
+  }
+  else
+  {
+    Serial.print(t);
+    Serial.println("min...");
+  }
+  // endif
+  // digitalWrite(13, LOW); // Fix turn LED off
+  delay(DS_D);
+  if (t > 0)
+  {
+    for (int8_t i = 0; i < (t * m / 8); i++)
+    {
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    }
+  }
+  else
+  {
+    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+  }
+}
+void sleepDeep()
+{
+  sleepDeep(0);
+}
+
+#ifdef SENSOR_TYPE_pir
+void wakeInterrupt()
+{
+  Serial.println("Wakeup interrupt...");
+  pir_state = true;
+  loop();
+}
+#endif
 
 void setup()
 {
@@ -77,13 +153,20 @@ void setup()
   Serial.println(GIT_VERSION);
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
-  Serial.print(F("VERBOSE "));
-#endif
-#ifdef DEBUG
-  Serial.print(F("DEBUG "));
-#endif
 #ifdef GD0
-  Serial.print(F("GD0"));
+  Serial.print(F("GD0 "));
+#endif
+#ifdef SEND_CHAR
+  Serial.print(F("CHAR "));
+#endif
+#ifdef SEND_BYTE
+  Serial.print(F("BYTE "));
+#endif
+  Serial.print(F("VERBOSE "));
+#ifdef DEBUG
+  Serial.print(F("DEBUG"));
+#endif
+  Serial.println();
 #endif
 
   // Start CC1101
@@ -313,6 +396,10 @@ void loop()
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
 
+  // Firmware version
+  str[0] += ",F:";
+  str[0] += String(GIT_VERSION_SHORT);
+
 #ifdef DEBUG
   Serial.print(F("> DEBUG: String Length "));
   Serial.println(str[0].length());
@@ -377,35 +464,17 @@ void loop()
 #ifdef SEND_BYTE
       // Transmit byte format
       byte byteArr[str[i].length() + 1];
-      str[i].getBytes(byteArr, str[i].length());
-      // byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '\0'; // 0 \0
-
-      for (uint8_t i = 0; i < sizeof(byteArr); i++)
-      {
-        Serial.print(byteArr[i], HEX);
-      }
-      Serial.println();
-
-      for (uint8_t i = 0; i < sizeof(byteArr); i++)
-      {
-        Serial.print((char)byteArr[i]);
-      }
-      Serial.println();
+      str[i].getBytes(byteArr, str[i].length() + 1);
+      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
 
       int state = radio.transmit(byteArr, sizeof(byteArr));
 #endif
 
 #ifdef SEND_CHAR
       // Transmit char format
-      char charArr[str[i].length() + 1]; // + 1
+      char charArr[str[i].length() + 1];                // + 1
       str[i].toCharArray(charArr, str[i].length() + 1); // + 1
       // charArr[sizeof(charArr) / sizeof(charArr[0]) - 1] = '\0'; // 0 \0
-
-      for (uint8_t i = 0; i < sizeof(charArr); i++)
-      {
-        Serial.print(charArr[i]);
-      }
-      Serial.println();
 
       int state = radio.transmit(charArr);
 #endif
@@ -453,85 +522,3 @@ void loop()
   sleepDeep(DS_L);
 #endif
 }
-
-// Last 4 digits of ChipID
-int getUniqueID()
-{
-  int uid = 0;
-  // read EEPROM serial number
-  int address = 13;
-  int serialNumber;
-  if (EEPROM.read(address) != 255)
-  {
-    EEPROM.get(address, serialNumber);
-    uid = serialNumber;
-#ifdef DEBUG
-    Serial.print("[EEPROM]: SN ");
-    Serial.print(uid);
-    Serial.print(" -> HEX ");
-    Serial.println(String(serialNumber, HEX));
-#endif
-  }
-#ifdef DEBUG
-  else
-  {
-    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
-  }
-#endif
-  return uid;
-}
-
-/*
-   sleep
-   1 - 254 minutes
-   255 = 8 seconds
-   0, empty = forever
-*/
-void sleepDeep()
-{
-  sleepDeep(0);
-}
-void sleepDeep(uint8_t t)
-{
-  uint8_t m = 60;
-  // #ifdef VERBOSE
-  Serial.print("Deep Sleep ");
-  if (t < 1)
-  {
-    Serial.println("forever...");
-  }
-  else if (t > 254)
-  {
-    t = 1;
-    m = 8;
-    Serial.println("8s...");
-  }
-  else
-  {
-    Serial.print(t);
-    Serial.println("min...");
-  }
-  // endif
-  // digitalWrite(13, LOW); // Fix turn LED off
-  delay(DS_D);
-  if (t > 0)
-  {
-    for (int8_t i = 0; i < (t * m / 8); i++)
-    {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    }
-  }
-  else
-  {
-    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
-  }
-}
-
-#ifdef SENSOR_TYPE_pir
-void wakeInterrupt()
-{
-  Serial.println("Wakeup interrupt...");
-  pir_state = true;
-  loop();
-}
-#endif
