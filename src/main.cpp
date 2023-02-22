@@ -456,7 +456,7 @@ void loop()
       // Transmit byte format
       byte byteArr[str[i].length() + 1];
       str[i].getBytes(byteArr, str[i].length() + 1);
-      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
+      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
 #ifdef GD0
       ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
 #else
