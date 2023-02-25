@@ -109,7 +109,6 @@ void sleepDeep(uint8_t t)
     Serial.println("min...");
   }
   // endif
-  // digitalWrite(13, LOW); // Fix turn LED off
   delay(DS_D);
   if (t > 0)
   {
