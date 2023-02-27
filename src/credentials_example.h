@@ -7,9 +7,12 @@
 // #define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
-#define VERBOSE
+#define VERBOSE // Always enabled
+// #define VERBOSE_FW // Firmware Version
+// #define VERBOSE_PC // Packet Count
 // #define DEBUG
-// #define GD0 2 // Disable for new method without GD0
+
+#define GD0 2
 #define CC_FREQ 868.32
 #define CC_POWER 12
 #define CC_DELAY 100 // [100]
@@ -19,8 +22,8 @@
 // #define SEND_BYTE
 
 // Deep sleep
-#define DS_L 255 // long [3]
-#define DS_S 255 // short [255]
+#define DS_L 255   // long [3] 5 
+#define DS_S 255 // short [255] 3
 #define DS_D 100 // delay before sleep 70 [100] 500
 
 // Sensor pins

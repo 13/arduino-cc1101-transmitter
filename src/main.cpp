@@ -9,19 +9,24 @@
 
 #ifdef SENSOR_TYPE_si7021
 #include <Adafruit_Si7021.h>
+Adafruit_Si7021 si = Adafruit_Si7021();
 #endif
 #ifdef SENSOR_TYPE_ds18b20
 #include <OneWire.h>
 #include <DallasTemperature.h>
+OneWire oneWire(SENSOR_PIN_OW);
+DallasTemperature ds18b20(&oneWire);
 #endif
 #if defined(SENSOR_TYPE_bmp280) || defined(SENSOR_TYPE_bme680)
 #include <Wire.h>
 #endif
 #ifdef SENSOR_TYPE_bmp280
 #include <Adafruit_BMP280.h>
+Adafruit_BMP280 bmp280;
 #endif
 #ifdef SENSOR_TYPE_bme680
 #include <Adafruit_BME680.h>
+Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
 // voltage
@@ -29,28 +34,12 @@ VoltageReference vRef;
 // wakeup
 boolean wakeup_state = false;
 
-#ifdef SENSOR_TYPE_si7021
-Adafruit_Si7021 si = Adafruit_Si7021();
-#endif
-#ifdef SENSOR_TYPE_ds18b20
-OneWire oneWire(SENSOR_PIN_OW);
-DallasTemperature ds18b20(&oneWire);
-#endif
-#ifdef SENSOR_TYPE_bmp280
-Adafruit_BMP280 bmp280;
-#endif
-#ifdef SENSOR_TYPE_bme680
-Adafruit_BME680 bme680 = Adafruit_BME680();
-#endif
 #ifdef SENSOR_TYPE_pir
 boolean pir_state = false;
 #endif
 
 // counter
-#ifdef VERBOSE
-#define PACKET_COUNT
-#endif
-#ifdef PACKET_COUNT
+#ifdef VERBOSE_PC
 uint16_t msgCounter = 1;
 #endif
 
@@ -150,6 +139,7 @@ void setup()
   Serial.println(GIT_VERSION);
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
+  Serial.print(F("VERBOSE "));  
 #ifdef GD0
   Serial.print(F("GD0 "));
 #endif
@@ -159,7 +149,6 @@ void setup()
 #ifdef SEND_BYTE
   Serial.print(F("BYTE "));
 #endif
-  Serial.print(F("VERBOSE "));
 #ifdef DEBUG
   Serial.print(F("DEBUG"));
 #endif
@@ -196,7 +185,7 @@ void setup()
     Serial.print(F("ERR "));
     Serial.println(cc_state);
 #endif
-    sleepDeep(DS_S);
+    // sleepDeep(DS_S);
   }
   digitalWrite(13, LOW); // Fix turn LED off
   // voltage
@@ -259,7 +248,7 @@ void loop()
   String str[3];
   str[0] = ",N:";
   str[0] += String(getUniqueID(), HEX);
-#ifdef PACKET_COUNT
+#ifdef VERBOSE_PC
   str[0] += ",I:";
   str[0] += msgCounter;
 #endif
@@ -386,9 +375,11 @@ void loop()
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
   
+#ifdef VERBOSE_FW
   // Firmware version
   str[0] += ",F:";
   str[0] += String(GIT_VERSION_SHORT);
+#endif
 
 #ifdef DEBUG
   Serial.print(F("> DEBUG: String Length "));
@@ -415,7 +406,7 @@ void loop()
     int str_middle = str[0].indexOf(",", str_middle + str[0].length() / 2);
     str[1] = str[0].substring(0, str_middle);
     // Increase the packet counter in the splitted second part
-#ifdef PACKET_COUNT
+#ifdef VERBOSE_PC
     str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",", str[0].indexOf(",") + 1) + 1)) +
              ',' + str[0].substring(str_middle + 1);
 #else
@@ -497,7 +488,7 @@ void loop()
     }
   }
 
-#ifdef PACKET_COUNT
+#ifdef VERBOSE_PC
   if (msgCounter < 65534)
   {
     msgCounter++;
