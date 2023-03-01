@@ -462,6 +462,7 @@ void loop()
       ELECHOUSE_cc1101.SendData(charArr);
 #else
       ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
+
 #endif
 #endif
 
