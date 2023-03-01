@@ -22,7 +22,7 @@
 // #define SEND_BYTE
 
 // Deep sleep
-#define DS_L 255   // long [3] 5 
+#define DS_L 5   // long [3] 5 
 #define DS_S 255 // short [255] 3
 #define DS_D 100 // delay before sleep 70 [100] 500
 
