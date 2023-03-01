@@ -1,62 +1,129 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <LowPower.h>
-#include <RadioLib.h>
 #include <VoltageReference.h>
+#include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <credentials.h>
 
-// CC1101
-#define CC_FREQ 868.32
-#define CC_POWER 10
-#define GD0 2
+// Edit credentials.h
 
 #ifdef SENSOR_TYPE_si7021
 #include <Adafruit_Si7021.h>
+Adafruit_Si7021 si = Adafruit_Si7021();
 #endif
 #ifdef SENSOR_TYPE_ds18b20
 #include <OneWire.h>
 #include <DallasTemperature.h>
+OneWire oneWire(SENSOR_PIN_OW);
+DallasTemperature ds18b20(&oneWire);
 #endif
 #if defined(SENSOR_TYPE_bmp280) || defined(SENSOR_TYPE_bme680)
 #include <Wire.h>
 #endif
 #ifdef SENSOR_TYPE_bmp280
 #include <Adafruit_BMP280.h>
-#endif
-#ifdef SENSOR_TYPE_bme680
-#include <Adafruit_BME680.h>
-#endif
-
-// CC1101
-// CS pin:    10
-// GDO0 pin:  2
-CC1101 cc = new Module(10, GD0, RADIOLIB_NC);
-
-// voltage
-VoltageReference vRef;
-
-#ifdef SENSOR_TYPE_si7021
-Adafruit_Si7021 si = Adafruit_Si7021();
-#endif
-#ifdef SENSOR_TYPE_ds18b20
-OneWire oneWire(SENSOR_PIN_OW);
-DallasTemperature ds18b20(&oneWire);
-#endif
-#ifdef SENSOR_TYPE_bmp280
 Adafruit_BMP280 bmp280;
 #endif
 #ifdef SENSOR_TYPE_bme680
+#include <Adafruit_BME680.h>
 Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
+// voltage
+VoltageReference vRef;
+// wakeup
+boolean wakeup_state = false;
+
+#ifdef SENSOR_TYPE_pir
+boolean pir_state = false;
+#endif
+
 // counter
-#ifdef DEBUG
+#ifdef VERBOSE_PC
 uint16_t msgCounter = 1;
 #endif
 
-int getUniqueID();
-void sleepDeep(uint8_t t);
-void printHex(uint8_t num);
+// supplementary functions
+// Last 4 digits of ChipID
+int getUniqueID()
+{
+  int uid = 0;
+  // read EEPROM serial number
+  int address = 13;
+  int serialNumber;
+  if (EEPROM.read(address) != 255)
+  {
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+#ifdef DEBUG
+    Serial.print("[EEPROM]: SN ");
+    Serial.print(uid);
+    Serial.print(" -> HEX ");
+    Serial.println(String(serialNumber, HEX));
+#endif
+  }
+#ifdef DEBUG
+  else
+  {
+    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
+  }
+#endif
+  return uid;
+}
+
+/*
+   sleep
+   1 - 254 minutes
+   255 = 8 seconds
+   0, empty = forever
+*/
+void sleepDeep(uint8_t t)
+{
+  uint8_t m = 60;
+  // #ifdef VERBOSE
+  Serial.print("Deep Sleep ");
+  if (t < 1)
+  {
+    Serial.println("forever...");
+  }
+  else if (t > 254)
+  {
+    t = 1;
+    m = 8;
+    Serial.println("8s...");
+  }
+  else
+  {
+    Serial.print(t);
+    Serial.println("min...");
+  }
+  // endif
+  delay(DS_D);
+  if (t > 0)
+  {
+    for (int8_t i = 0; i < (t * m / 8); i++)
+    {
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    }
+  }
+  else
+  {
+    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+  }
+}
+void sleepDeep()
+{
+  sleepDeep(0);
+}
+
+#ifdef SENSOR_TYPE_pir
+void wakeInterrupt()
+{
+  Serial.println("Wakeup interrupt...");
+  pir_state = true;
+  loop();
+}
+#endif
 
 void setup()
 {
@@ -69,18 +136,48 @@ void setup()
   Serial.println(F("> "));
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
-  Serial.println(F(__TIMESTAMP__));
-
-// Start CC1101
+  Serial.println(GIT_VERSION);
 #ifdef VERBOSE
-  Serial.print(F("[CC1101] Initializing... "));
+  Serial.print(("> Mode: "));
+  Serial.print(F("VERBOSE "));  
+#ifdef GD0
+  Serial.print(F("GD0 "));
 #endif
-  int cc_state = cc.begin(CC_FREQ, 48.0, 48.0, 135.0, CC_POWER, 16);
-  if (cc_state == ERR_NONE)
+#ifdef SEND_CHAR
+  Serial.print(F("CHAR "));
+#endif
+#ifdef SEND_BYTE
+  Serial.print(F("BYTE "));
+#endif
+#ifdef DEBUG
+  Serial.print(F("DEBUG"));
+#endif
+  Serial.println();
+#endif
+
+  // Start CC1101
+#ifdef VERBOSE
+  Serial.print(F("[CC1101]: Initializing... "));
+#endif
+  int cc_state = ELECHOUSE_cc1101.getCC1101();
+  if (cc_state)
   {
 #ifdef VERBOSE
     Serial.println(F("OK"));
 #endif
+    ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
+#ifdef GD0
+    ELECHOUSE_cc1101.setGDO0(GD0); // set lib internal gdo pin (gdo0). Gdo2 not use for this example.
+#endif
+    ELECHOUSE_cc1101.setCCMode(1);     // set config for internal transmission mode.
+    ELECHOUSE_cc1101.setModulation(0); // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
+    ELECHOUSE_cc1101.setMHZ(CC_FREQ);  // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
+    ELECHOUSE_cc1101.setPA(CC_POWER);  // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
+    ELECHOUSE_cc1101.setSyncMode(2);   // Combined sync-word qualifier mode. 0 = No preamble/sync. 1 = 16 sync word bits detected. 2 = 16/16 sync word bits detected. 3 = 30/32 sync word bits detected. 4 = No preamble/sync, carrier-sense above threshold. 5 = 15/16 + carrier-sense above threshold. 6 = 16/16 + carrier-sense above threshold. 7 = 30/32 + carrier-sense above threshold.
+    ELECHOUSE_cc1101.setCrc(1);        // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
+    ELECHOUSE_cc1101.setCRC_AF(1);     // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
+    // ELECHOUSE_cc1101.setAdrChk(1);     // Controls address check configuration of received packages. 0 = No address check. 1 = Address check, no broadcast. 2 = Address check and 0 (0x00) broadcast. 3 = Address check and 0 (0x00) and 255 (0xFF) broadcast.
+    // ELECHOUSE_cc1101.setAddr(0);       // Address used for packet filtration. Optional broadcast addresses are 0 (0x00) and 255 (0xFF).
   }
   else
   {
@@ -88,9 +185,9 @@ void setup()
     Serial.print(F("ERR "));
     Serial.println(cc_state);
 #endif
-    sleepDeep(DS_S);
+    // sleepDeep(DS_S);
   }
-
+  digitalWrite(13, LOW); // Fix turn LED off
   // voltage
   vRef.begin();
 
@@ -128,37 +225,45 @@ void setup()
 
 // pir
 #ifdef SENSOR_TYPE_pir
+  Serial.print(SENSOR_TYPE_pir);
+  Serial.print(": ");
+  Serial.println(" OK");
   pinMode(SENSOR_PIN_PIR, INPUT);
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterrupt, RISING);
   sleepDeep();
 #endif
 }
 
 void loop()
 {
-
+  if (wakeup_state)
+  {
+    Serial.println("Wakeup...");
+  }
+  else
+  {
+    wakeup_state = true;
+  }
   // prepare msg string
   String str[3];
   str[0] = ",N:";
   str[0] += String(getUniqueID(), HEX);
-#ifdef DEBUG
+#ifdef VERBOSE_PC
   str[0] += ",I:";
   str[0] += msgCounter;
 #endif
 
 #ifdef SENSOR_TYPE_pir
-  if (digitalRead(SENSOR_PIN_PIR) == HIGH)
-  {
-    boolean pir_state = true;
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_pir);
-    Serial.print(": ");
-    Serial.println(pir_state);
+  Serial.print(SENSOR_TYPE_pir);
+  Serial.print(": ");
+  Serial.println(pir_state);
 #endif
-    if (pir_state)
-    {
-      str[0] += ",M1:";
-      str[0] += int(pir_state);
-    }
+  if (pir_state)
+  {
+    str[0] += ",M1:";
+    str[0] += int(pir_state);
+    pir_state = false;
   }
 #endif
 
@@ -173,7 +278,7 @@ void loop()
     Serial.print(si_temperature);
     Serial.print("C, ");
     Serial.print(si_humidity);
-    Serial.println("%, ");
+    Serial.println("%");
 #endif
     str[0] += ",T1:";
     str[0] += int(round(si_temperature * 10));
@@ -208,19 +313,19 @@ void loop()
 #ifdef SENSOR_TYPE_bmp280
   float bmp280_temperature = bmp280.readTemperature();
   float bmp280_pressure = bmp280.readPressure();
-  float bmp280_temp_correction = 1.0;
+  float bmp280_temp_offset = 0;
   if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bmp280);
     Serial.print(": ");
-    Serial.print(bmp280_temperature);
+    Serial.print(bmp280_temperature - bmp280_temp_offset);
     Serial.print("C, ");
     Serial.print(bmp280_pressure);
     Serial.println("Pa");
 #endif
     str[0] += ",T3:";
-    str[0] += int(round((bmp280_temperature - bmp280_temp_correction) * 10));
+    str[0] += int(round((bmp280_temperature + bmp280_temp_offset) * 10));
     str[0] += ",P3:";
     str[0] += int(round(bmp280_pressure) / 10);
   }
@@ -269,11 +374,27 @@ void loop()
 #endif
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
+  
+#ifdef VERBOSE_FW
+  // Firmware version
+  str[0] += ",F:";
+  str[0] += String(GIT_VERSION_SHORT);
+#endif
 
-  int str_diff = 60 - str[0].length();
+#ifdef DEBUG
+  Serial.print(F("> DEBUG: String Length "));
+  Serial.println(str[0].length());
+#endif
+
+  // Split packets
+  // maxPacketSize (61) - leadingTupleLength ('Z:44')
+  // 61 - 4 = [57]
+  int str_diff = 57 - str[0].length();
+  int strCount = 1;
 
   if (str_diff < 0)
   {
+    strCount = 3;
 #ifdef VERBOSE
     Serial.print(F("> String too long: "));
     Serial.println(str[0].length());
@@ -284,161 +405,104 @@ void loop()
 #endif
     int str_middle = str[0].indexOf(",", str_middle + str[0].length() / 2);
     str[1] = str[0].substring(0, str_middle);
-    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) + ',' + str[0].substring(str_middle + 1);
+    // Increase the packet counter in the splitted second part
+#ifdef VERBOSE_PC
+    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",", str[0].indexOf(",") + 1) + 1)) +
+             ',' + str[0].substring(str_middle + 1);
+#else
+    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) +
+             ',' + str[0].substring(str_middle + 1);
+#endif
     str[0] = "";
   }
 
-  for (uint8_t i = 0; i < 3; i++)
+  for (uint8_t i = 0; i < strCount; i++)
   {
     if (str[i].length() != 0)
     {
-      /* max length is 62 because of Arduino String last byte 00
-         but 62 not good better use 61
-         String length here to 60, thus packet length 61 */
+#ifdef FILL_STRING
+      // Fill to String length 57, thus total is 61
       for (uint8_t j = str[i].length(); j < 56; j++)
       {
         str[i] += ".";
       }
-
-      // Z: = +2
+#endif
+      // Add leadingTuple 'Z:' with length of String
       str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 #ifdef DEBUG
       Serial.print(F("> DEBUG: "));
       Serial.println(str[i]);
 #endif
-      // String to byte +1 string nul terminator 00 and overwrite
+
+#ifdef VERBOSE
+#ifdef DEBUG
+      Serial.println(F("[CC1101]: Transmitting packet... "));
+#else
+      Serial.print(F("[CC1101]: Transmitting packet... "));
+#endif
+#endif
+
+#ifdef SEND_BYTE
+      // Transmit byte format
       byte byteArr[str[i].length() + 1];
-      str[i].getBytes(byteArr, sizeof(byteArr));
-      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '0';
+      str[i].getBytes(byteArr, str[i].length() + 1);
+      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
+#ifdef GD0
+      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+#else
+      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
+#endif
+#endif
+
+#ifdef SEND_CHAR
+      // Transmit char format
+      char charArr[str[i].length() + 1];
+      str[i].toCharArray(charArr, str[i].length() + 1);
+#ifdef GD0
+      ELECHOUSE_cc1101.SendData(charArr);
+#else
+      ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
+
+#endif
+#endif
+
 #ifdef VERBOSE
+#ifdef DEBUG
+      Serial.println(F("[CC1101]: Transmitting packet... OK"));
       Serial.print(F("> Packet Length: "));
-      Serial.println(sizeof(byteArr) / sizeof(byteArr[0])); // +1
+#ifdef SEND_CHAR
+      Serial.println(strlen(charArr));
 #endif
-#ifdef VERBOSE
-      Serial.println(F("[CC1101] Transmitting packet... "));
+#ifdef SEND_BYTE
+      Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
 #endif
-      int cc_tr_state = cc.transmit(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-
-      if (cc_tr_state == ERR_NONE)
-      {
-#ifdef VERBOSE
-        Serial.println(F("[CC1101] Transmitting packet... OK"));
+#else
+      Serial.println(F("OK"));
 #endif
-        Serial.println(str[i]);
-#ifdef DEBUGX
-        for (uint8_t k = 0; k < sizeof(byteArr); k++)
-        {
-          printHex(byteArr[k]);
-        }
-        Serial.println("");
 #endif
-      }
-#ifdef VERBOSE
-      else if (cc_tr_state == ERR_PACKET_TOO_LONG)
-      {
-        // the supplied packet was longer than 64 bytes
-        Serial.println(F("ERR: too long!"));
-      }
-#endif
-      else
-      {
-#ifdef VERBOSE
-        // some other error occurred
-        Serial.print(F("[CC1101] Transmitting packet... ERR, code "));
-        Serial.println(cc_tr_state);
-#endif
-      }
-      // delay multi send
-      if (str[i] != 0)
-      {
-        delay(DS_D);
-      }
+      Serial.println(str[i]);
     }
-  }
-  sleepDeep(DS_L);
-
-#ifdef DEBUG
-  msgCounter++;
-#endif
-}
-
-// Last 4 digits of ChipID
-int getUniqueID()
-{
-  int uid = 0;
-  // read EEPROM serial number
-  int address = 13;
-  int serialNumber;
-  if (EEPROM.read(address) != 255)
-  {
-    EEPROM.get(address, serialNumber);
-    uid = serialNumber;
-#ifdef VERBOSE
-    Serial.print("EEPROM SN: ");
-    Serial.print(uid);
-    Serial.print(" -> HEX: ");
-    Serial.println(String(serialNumber, HEX));
-#endif
-  }
-#ifdef VERBOSE
-  else
-  {
-    Serial.println("EEPROM SN: ERROR EMPTY USING DEFAULT");
-  }
-#endif
-  return uid;
-}
-
-/*
-   sleep
-   1 - 254 minutes
-   255 = 8 seconds
-   0, empty = forever
-*/
-void sleepDeep()
-{
-  sleepDeep(0);
-}
-void sleepDeep(uint8_t t)
-{
-  uint8_t m = 60;
-#ifdef VERBOSE
-  Serial.print("Deep Sleep: ");
-  if (t < 1)
-  {
-    Serial.println("forever");
-  }
-  else if (t > 254)
-  {
-    t = 1;
-    m = 8;
-    Serial.println("8s");
-  }
-  else
-  {
-    Serial.print(t);
-    Serial.println("min");
-  }
-#endif
-  delay(DS_D);
-  if (t > 0)
-  {
-    for (int8_t i = 0; i < (t * m / 8); i++)
+    // delay multi send
+    if (strCount > 1)
     {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      delay(CC_DELAY);
     }
+  }
+
+#ifdef VERBOSE_PC
+  if (msgCounter < 65534)
+  {
+    msgCounter++;
   }
   else
   {
-    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+    msgCounter = 0;
   }
-}
-
-#ifdef DEBUG
-void printHex(uint8_t num)
-{
-  char hexCar[2];
-  sprintf(hexCar, "%02X", num);
-  Serial.print(hexCar);
-}
 #endif
+
+#ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#else
+  sleepDeep(DS_L);
+#endif
+}
