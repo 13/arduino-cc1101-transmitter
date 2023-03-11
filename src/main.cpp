@@ -98,6 +98,7 @@ void sleepDeep(uint8_t t)
     Serial.println("min...");
   }
   // endif
+  ELECHOUSE_cc1101.goSleep();
   delay(DS_D);
   if (t > 0)
   {
