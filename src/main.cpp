@@ -491,7 +491,7 @@ void loop()
   }
 
 #ifdef VERBOSE_PC
-  if (msgCounter < 65534)
+  if (msgCounter < UINT16_MAX)
   {
     msgCounter++;
   }
