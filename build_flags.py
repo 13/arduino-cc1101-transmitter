@@ -11,4 +11,9 @@ build_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 # Print the results
 version = git_version + ' (' + build_time + ')'
+version_tag = git_version.split('-')[0]
+
 print("'-DVERSION=\"%s\"'" % version)
+#print("'-DVERSIONTAG=\"%s\"'" % version_tag)
+
+#print("'-DVERSION=\"%s\"\n-DVERSIONTAG=\"%s\"'" % (version, version_tag))

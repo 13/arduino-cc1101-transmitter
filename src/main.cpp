@@ -3,6 +3,7 @@
 #include <LowPower.h>
 #include <VoltageReference.h>
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
+#include <version.h>
 #include <credentials.h>
 
 // Edit credentials.h
@@ -62,47 +63,53 @@ int getUniqueID()
     Serial.println(String(serialNumber, HEX));
 #endif
   }
-#ifdef DEBUG
   else
   {
-    Serial.println("[EEPROM]: SN ERROR EMPTY USING DEFAULT");
-  }
+    long randNumber = random(256, 4096);
+    EEPROM.put(address, randNumber);
+    delay(100);
+    EEPROM.get(address, serialNumber);
+    uid = serialNumber;
+#ifdef DEBUG
+    Serial.print("[EEPROM]: GENERATING SN ");
+    Serial.print(uid);
+    Serial.print(" -> HEX ");
+    Serial.println(String(serialNumber, HEX));
 #endif
+  }
+
   return uid;
 }
 
 /*
    sleep
-   1 - 254 minutes
-   255 = 8 seconds
-   0, empty = forever
+   0,empty = forever
+   1-7 = minutes
+   8+ = seconds
 */
 void sleepDeep(uint8_t t)
 {
-  uint8_t m = 60;
-  // #ifdef VERBOSE
   Serial.print("Deep Sleep ");
   if (t < 1)
   {
     Serial.println("forever...");
   }
-  else if (t > 254)
+  else if (t < 8)
   {
-    t = 1;
-    m = 8;
-    Serial.println("8s...");
+    t = t * 60;
+    Serial.print(t);
+    Serial.println("min...");
   }
   else
   {
     Serial.print(t);
-    Serial.println("min...");
+    Serial.println("s...");
   }
-  // endif
   ELECHOUSE_cc1101.goSleep();
   delay(DS_D);
   if (t > 0)
   {
-    for (int8_t i = 0; i < (t * m / 8); i++)
+    for (int8_t i = 0; i < (t / 8); i++)
     {
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
     }
@@ -137,10 +144,10 @@ void setup()
   Serial.println(F("> "));
   Serial.println(F("> "));
   Serial.print(F("> Booting... Compiled: "));
-  Serial.println(GIT_VERSION);
+  Serial.println(VERSION);
 #ifdef VERBOSE
   Serial.print(("> Mode: "));
-  Serial.print(F("VERBOSE "));  
+  Serial.print(F("VERBOSE "));
 #ifdef GD0
   Serial.print(F("GD0 "));
 #endif
@@ -168,17 +175,17 @@ void setup()
 #endif
     ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
 #ifdef GD0
-    ELECHOUSE_cc1101.setGDO0(GD0); // set lib internal gdo pin (gdo0). Gdo2 not use for this example.
+    ELECHOUSE_cc1101.setGDO0(GD0);
 #endif
-    ELECHOUSE_cc1101.setCCMode(1);     // set config for internal transmission mode.
-    ELECHOUSE_cc1101.setModulation(0); // set modulation mode. 0 = 2-FSK, 1 = GFSK, 2 = ASK/OOK, 3 = 4-FSK, 4 = MSK.
-    ELECHOUSE_cc1101.setMHZ(CC_FREQ);  // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
-    ELECHOUSE_cc1101.setPA(CC_POWER);  // Set TxPower. The following settings are possible depending on the frequency band.  (-30  -20  -15  -10  -6    0    5    7    10   11   12) Default is max!
-    ELECHOUSE_cc1101.setSyncMode(2);   // Combined sync-word qualifier mode. 0 = No preamble/sync. 1 = 16 sync word bits detected. 2 = 16/16 sync word bits detected. 3 = 30/32 sync word bits detected. 4 = No preamble/sync, carrier-sense above threshold. 5 = 15/16 + carrier-sense above threshold. 6 = 16/16 + carrier-sense above threshold. 7 = 30/32 + carrier-sense above threshold.
-    ELECHOUSE_cc1101.setCrc(1);        // 1 = CRC calculation in TX and CRC check in RX enabled. 0 = CRC disabled for TX and RX.
-    ELECHOUSE_cc1101.setCRC_AF(1);     // Enable automatic flush of RX FIFO when CRC is not OK. This requires that only one packet is in the RXIFIFO and that packet length is limited to the RX FIFO size.
-    // ELECHOUSE_cc1101.setAdrChk(1);     // Controls address check configuration of received packages. 0 = No address check. 1 = Address check, no broadcast. 2 = Address check and 0 (0x00) broadcast. 3 = Address check and 0 (0x00) and 255 (0xFF) broadcast.
-    // ELECHOUSE_cc1101.setAddr(0);       // Address used for packet filtration. Optional broadcast addresses are 0 (0x00) and 255 (0xFF).
+    ELECHOUSE_cc1101.setCCMode(1);
+    ELECHOUSE_cc1101.setModulation(0);
+    ELECHOUSE_cc1101.setMHZ(CC_FREQ);
+    ELECHOUSE_cc1101.setPA(CC_POWER);
+    ELECHOUSE_cc1101.setSyncMode(2);
+    ELECHOUSE_cc1101.setCrc(1);
+    ELECHOUSE_cc1101.setCRC_AF(1);
+    // ELECHOUSE_cc1101.setAdrChk(1);
+    // ELECHOUSE_cc1101.setAddr(0);
   }
   else
   {
@@ -375,11 +382,11 @@ void loop()
 #endif
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
-  
+
 #ifdef VERBOSE_FW
   // Firmware version
   str[0] += ",F:";
-  str[0] += String(GIT_VERSION_SHORT);
+  str[0] += String(VERSIONTAG);
 #endif
 
 #ifdef DEBUG
