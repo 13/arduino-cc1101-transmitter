@@ -89,7 +89,7 @@ int getUniqueID()
 */
 void sleepDeep(uint8_t t)
 {
-  Serial.print("Deep Sleep ");
+  Serial.print("SleepDeep ");
   if (t < 1)
   {
     Serial.println("forever...");
