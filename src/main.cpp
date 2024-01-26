@@ -30,6 +30,8 @@ Adafruit_BMP280 bmp280;
 Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
+// cc1101
+boolean cc1101_state = true;
 // voltage
 VoltageReference vRef;
 // wakeup
@@ -165,13 +167,13 @@ void setup()
 
   // Start CC1101
 #ifdef VERBOSE
-  Serial.print(F("[CC1101]: Initializing... "));
+  Serial.print(F("cc1101: "));
 #endif
   int cc_state = ELECHOUSE_cc1101.getCC1101();
   if (cc_state)
   {
 #ifdef VERBOSE
-    Serial.println(F("OK"));
+    Serial.println(F("Detected"));
 #endif
     ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
 #ifdef GD0
@@ -190,8 +192,9 @@ void setup()
   else
   {
 #ifdef VERBOSE
-    Serial.print(F("ERR "));
+    Serial.print(F("Not detected "));
     Serial.println(cc_state);
+    cc1101_state = false;
 #endif
     // sleepDeep(DS_S);
   }
@@ -205,9 +208,8 @@ void setup()
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_si7021);
     Serial.print(": ");
-    Serial.println(" ERROR -1");
+    Serial.println("Not detected");
 #endif
-    sleepDeep(DS_S);
   }
 #endif
 
@@ -225,9 +227,8 @@ void setup()
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bme680);
     Serial.print(": ");
-    Serial.println(" ERROR -1");
+    Serial.println(" Not detected");
 #endif
-    sleepDeep(DS_S);
   }
 #endif
 
@@ -314,7 +315,7 @@ void loop()
 #ifdef VERBOSE
   else
   {
-    Serial.println("ERR");
+    Serial.println("Not detected");
   }
 #endif
 #endif
@@ -424,79 +425,86 @@ void loop()
     str[0] = "";
   }
 
-  for (uint8_t i = 0; i < strCount; i++)
+  if (cc1101_state)
   {
-    if (str[i].length() != 0)
+
+    for (uint8_t i = 0; i < strCount; i++)
     {
-#ifdef FILL_STRING
-      // Fill to String length 57, thus total is 61
-      for (uint8_t j = str[i].length(); j < 56; j++)
+      if (str[i].length() != 0)
       {
-        str[i] += ".";
+#ifdef FILL_STRING
+        // Fill to String length 57, thus total is 61
+        for (uint8_t j = str[i].length(); j < 56; j++)
+        {
+          str[i] += ".";
+        }
+#endif
+        // Add leadingTuple 'Z:' with length of String
+        str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
+#ifdef DEBUG
+        Serial.print(F("> DEBUG: "));
+        Serial.println(str[i]);
+#endif
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... "));
+#else
+        Serial.print(F("cc1101: Transmitting packet... "));
+#endif
+#endif
+
+#ifdef SEND_BYTE
+        // Transmit byte format
+        byte byteArr[str[i].length() + 1];
+        str[i].getBytes(byteArr, str[i].length() + 1);
+        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
+#ifdef GD0
+        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+#else
+        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
+#endif
+#endif
+
+#ifdef SEND_CHAR
+        // Transmit char format
+        char charArr[str[i].length() + 1];
+        str[i].toCharArray(charArr, str[i].length() + 1);
+#ifdef GD0
+        ELECHOUSE_cc1101.SendData(charArr);
+#else
+        ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
+
+#endif
+#endif
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... OK"));
+        Serial.print(F("> Packet Length: "));
+#ifdef SEND_CHAR
+        Serial.println(strlen(charArr));
+#endif
+#ifdef SEND_BYTE
+        Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
+#endif
+#else
+        Serial.println(F("OK"));
+#endif
+#endif
+        Serial.println(str[i]);
       }
-#endif
-      // Add leadingTuple 'Z:' with length of String
-      str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
-#ifdef DEBUG
-      Serial.print(F("> DEBUG: "));
-      Serial.println(str[i]);
-#endif
-
-#ifdef VERBOSE
-#ifdef DEBUG
-      Serial.println(F("[CC1101]: Transmitting packet... "));
-#else
-      Serial.print(F("[CC1101]: Transmitting packet... "));
-#endif
-#endif
-
-#ifdef SEND_BYTE
-      // Transmit byte format
-      byte byteArr[str[i].length() + 1];
-      str[i].getBytes(byteArr, str[i].length() + 1);
-      byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
-#ifdef GD0
-      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-#else
-      ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
-#endif
-#endif
-
-#ifdef SEND_CHAR
-      // Transmit char format
-      char charArr[str[i].length() + 1];
-      str[i].toCharArray(charArr, str[i].length() + 1);
-#ifdef GD0
-      ELECHOUSE_cc1101.SendData(charArr);
-#else
-      ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
-
-#endif
-#endif
-
-#ifdef VERBOSE
-#ifdef DEBUG
-      Serial.println(F("[CC1101]: Transmitting packet... OK"));
-      Serial.print(F("> Packet Length: "));
-#ifdef SEND_CHAR
-      Serial.println(strlen(charArr));
-#endif
-#ifdef SEND_BYTE
-      Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
-#endif
-#else
-      Serial.println(F("OK"));
-#endif
-#endif
-      Serial.println(str[i]);
-    }
-    // delay multi send
-    if (strCount > 1)
-    {
-      delay(CC_DELAY);
+      // delay multi send
+      if (strCount > 1)
+      {
+        delay(CC_DELAY);
+      }
     }
   }
-
+  else
+  {
+    Serial.println(F("cc1101: Not transmitting"));
+  }
 #ifdef VERBOSE_PC
   if (msgCounter < UINT16_MAX)
   {
