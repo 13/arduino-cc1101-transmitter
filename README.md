@@ -65,6 +65,19 @@ X4 = bme680
 * VSCode
 * PlatformIO
 
+### Hardware
+
+|ATmeg328|CC1101|
+|---|---|
+|VCC|3V|
+|GND|GND|
+|11|SI|
+|13|SCLK|
+|12|S0|
+|-|GD1|
+|2|GD0|
+|10|CSN|
+
 ### Installation
 
 ```sh

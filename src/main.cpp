@@ -41,6 +41,11 @@ boolean wakeup_state = false;
 boolean pir_state = false;
 #endif
 
+#ifdef SENSOR_TYPE_switch
+boolean switchChanged = false;
+boolean switchState = LOW;
+#endif
+
 // counter
 #ifdef VERBOSE_PC
 uint16_t msgCounter = 1;
@@ -127,11 +132,20 @@ void sleepDeep()
 }
 
 #ifdef SENSOR_TYPE_pir
-void wakeInterrupt()
+void wakeInterruptPir()
 {
-  Serial.println("Wakeup interrupt...");
+  Serial.println("Wakeup interrupt pir...");
   pir_state = true;
   loop();
+}
+#endif
+
+#ifdef SENSOR_TYPE_switch
+void wakeInterruptSwitch()
+{
+  Serial.println("Wakeup interrupt switch...");
+  switchState = digitalRead(SENSOR_PIN_SWITCH);
+  switchChanged = true;
 }
 #endif
 
@@ -164,6 +178,10 @@ void setup()
 #endif
   Serial.println();
 #endif
+
+  // print unique id
+  Serial.print(F("> Node: "));
+  Serial.println(String(getUniqueID(), HEX));
 
   // Start CC1101
 #ifdef VERBOSE
@@ -236,10 +254,19 @@ void setup()
 #ifdef SENSOR_TYPE_pir
   Serial.print(SENSOR_TYPE_pir);
   Serial.print(": ");
-  Serial.println(" OK");
+  Serial.println("OK");
   pinMode(SENSOR_PIN_PIR, INPUT);
-  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterruptPir, RISING);
   sleepDeep();
+#endif
+
+// switch
+#ifdef SENSOR_TYPE_switch
+  pinMode(SENSOR_PIN_SWITCH, INPUT_PULLUP);
+  Serial.print(SENSOR_TYPE_switch);
+  Serial.print(": ");  
+  Serial.println(digitalRead(SENSOR_PIN_SWITCH) == HIGH ? "HIGH" : "LOW");
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_SWITCH), wakeInterruptSwitch, CHANGE);
 #endif
 }
 
@@ -274,6 +301,19 @@ void loop()
     str[0] += int(pir_state);
     pir_state = false;
   }
+#endif
+
+#ifdef SENSOR_TYPE_switch
+if (switchChanged) {
+#ifdef VERBOSE
+  Serial.print(SENSOR_TYPE_switch);
+  Serial.print(": ");
+  Serial.println(switchState == HIGH ? "HIGH" : "LOW");
+#endif
+  str[0] += ",S1:";
+  str[0] += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
+  switchChanged = false;
+}
 #endif
 
 #ifdef SENSOR_TYPE_si7021
@@ -383,6 +423,10 @@ void loop()
 #endif
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
+
+#ifdef MQTT_RETAINED
+  str[0] += ",R:1";
+#endif
 
 #ifdef VERBOSE_FW
   // Firmware version
@@ -517,6 +561,8 @@ void loop()
 #endif
 
 #ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#elif defined(SENSOR_TYPE_switch)
   sleepDeep();
 #else
   sleepDeep(DS_L);

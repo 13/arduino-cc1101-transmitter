@@ -1,10 +1,10 @@
 // Disable/enable sensors
-// #define SENSOR_TYPE_si7021 "si7021"
-// #define SENSOR_TYPE_ds18b20 "ds18b20"
-// #define SENSOR_TYPE_bmp280 "bmp280"
-// #define SENSOR_TYPE_bme680 "bme680"
-// #define SENSOR_TYPE_pir "pir"
-// #define SENSOR_TYPE_switch "switch"
+// #define SENSOR_TYPE_si7021   "si7021"
+// #define SENSOR_TYPE_ds18b20  "ds18b20"
+// #define SENSOR_TYPE_bmp280   "bmp280"
+// #define SENSOR_TYPE_bme680   "bme680"
+// #define SENSOR_TYPE_pir      "pir"
+#define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
 #define VERBOSE // Always enabled
@@ -27,11 +27,13 @@
 // #define SEND_BYTE
 
 // Sensor pins
-#define SENSOR_PIN_SDA 0
-#define SENSOR_PIN_SDC 2
 #ifdef SENSOR_TYPE_ds18b20
-#define SENSOR_PIN_OW 3
+#define SENSOR_PIN_OW 3 // needs changes 2 & 3 only interrupt pins
 #endif
 #ifdef SENSOR_TYPE_pir
 #define SENSOR_PIN_PIR 3
+#endif
+#ifdef SENSOR_TYPE_switch
+#define SENSOR_PIN_SWITCH 3
+#define MQTT_RETAINED
 #endif
