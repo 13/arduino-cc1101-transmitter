@@ -72,6 +72,7 @@ int getUniqueID()
   }
   else
   {
+    randomSeed(analogRead(0));
     long randNumber = random(256, 4096);
     EEPROM.put(address, randNumber);
     delay(100);
@@ -84,6 +85,29 @@ int getUniqueID()
     Serial.println(String(serialNumber, HEX));
 #endif
   }
+
+  return uid;
+}
+
+int setUniqueID()
+{
+  int uid = 0;
+  // read EEPROM serial number
+  int address = 13;
+  int serialNumber;
+
+  randomSeed(analogRead(0));
+  long randNumber = random(256, 4096);
+  EEPROM.put(address, randNumber);
+  delay(100);
+  EEPROM.get(address, serialNumber);
+  uid = serialNumber;
+#ifdef VERBOSE
+  Serial.print("> [EEPROM]: GENERATING SN ");
+  Serial.print(uid);
+  Serial.print(" -> HEX ");
+  Serial.println(String(serialNumber, HEX));
+#endif
 
   return uid;
 }
@@ -180,6 +204,9 @@ void setup()
 #endif
 
   // print unique id
+#ifdef GEN_UID
+  setUniqueID();
+#endif
   Serial.print(F("> Node: "));
   Serial.println(String(getUniqueID(), HEX));
 
@@ -264,7 +291,7 @@ void setup()
 #ifdef SENSOR_TYPE_switch
   pinMode(SENSOR_PIN_SWITCH, INPUT_PULLUP);
   Serial.print(SENSOR_TYPE_switch);
-  Serial.print(": ");  
+  Serial.print(": ");
   Serial.println(digitalRead(SENSOR_PIN_SWITCH) == HIGH ? "HIGH" : "LOW");
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_SWITCH), wakeInterruptSwitch, CHANGE);
 #endif
@@ -304,16 +331,17 @@ void loop()
 #endif
 
 #ifdef SENSOR_TYPE_switch
-if (switchChanged) {
+  if (switchChanged)
+  {
 #ifdef VERBOSE
-  Serial.print(SENSOR_TYPE_switch);
-  Serial.print(": ");
-  Serial.println(switchState == HIGH ? "HIGH" : "LOW");
+    Serial.print(SENSOR_TYPE_switch);
+    Serial.print(": ");
+    Serial.println(switchState == HIGH ? "HIGH" : "LOW");
 #endif
-  str[0] += ",S1:";
-  str[0] += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
-  switchChanged = false;
-}
+    str[0] += ",S1:";
+    str[0] += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
+    switchChanged = false;
+  }
 #endif
 
 #ifdef SENSOR_TYPE_si7021
