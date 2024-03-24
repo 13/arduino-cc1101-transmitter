@@ -38,7 +38,8 @@ VoltageReference vRef;
 boolean wakeup_state = false;
 
 #ifdef SENSOR_TYPE_pir
-boolean pir_state = false;
+boolean motionDetected = false;
+boolean pirState = LOW;
 #endif
 
 #ifdef SENSOR_TYPE_switch
@@ -159,8 +160,8 @@ void sleepDeep()
 void wakeInterruptPir()
 {
   Serial.println("Wakeup interrupt pir...");
-  pir_state = true;
-  loop();
+  pirState = digitalRead(SENSOR_PIN_PIR);
+  motionDetected = true;
 }
 #endif
 
@@ -279,10 +280,10 @@ void setup()
 
 // pir
 #ifdef SENSOR_TYPE_pir
+  pinMode(SENSOR_PIN_PIR, INPUT);
   Serial.print(SENSOR_TYPE_pir);
   Serial.print(": ");
-  Serial.println("OK");
-  pinMode(SENSOR_PIN_PIR, INPUT);
+  Serial.println(digitalRead(SENSOR_PIN_PIR) == HIGH ? "HIGH" : "LOW");
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterruptPir, RISING);
   sleepDeep();
 #endif
@@ -317,16 +318,16 @@ void loop()
 #endif
 
 #ifdef SENSOR_TYPE_pir
-#ifdef VERBOSE
-  Serial.print(SENSOR_TYPE_pir);
-  Serial.print(": ");
-  Serial.println(pir_state);
-#endif
-  if (pir_state)
+  if (motionDetected)
   {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_pir);
+    Serial.print(": ");
+    Serial.println(pirState == HIGH ? "HIGH" : "LOW");
+#endif
     str[0] += ",M1:";
-    str[0] += int(pir_state);
-    pir_state = false;
+    str[0] += int(pirState == HIGH ? 1 : 0);
+    motionDetected = false;
   }
 #endif
 
