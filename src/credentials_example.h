@@ -10,7 +10,7 @@
 #define VERBOSE // Always enabled
 // #define VERBOSE_FW // Firmware Version
 // #define VERBOSE_PC // Packet Count
-#define DEBUG
+// #define DEBUG
 
 // Deep sleep
 #define DS_L 36   // long [36] 60 
@@ -32,10 +32,10 @@
 #endif
 #ifdef SENSOR_TYPE_pir
 #define SENSOR_PIN_PIR 3
+#define MQTT_RETAINED_DISABLED
 #endif
 #ifdef SENSOR_TYPE_switch
 #define SENSOR_PIN_SWITCH 3
-#define MQTT_RETAINED
 #endif
 
 // FORCE GENERATE UID

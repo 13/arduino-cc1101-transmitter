@@ -453,8 +453,8 @@ void loop()
   str[0] += ",V1:";
   str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
 
-#ifdef MQTT_RETAINED
-  str[0] += ",R:1";
+#ifdef MQTT_RETAINED_DISABLED
+  str[0] += ",R:0";
 #endif
 
 #ifdef VERBOSE_FW
