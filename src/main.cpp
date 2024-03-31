@@ -51,6 +51,8 @@ boolean switchState = LOW;
 #ifdef VERBOSE_PC
 uint16_t msgCounter = 1;
 #endif
+// random packet id
+uint16_t pid = 0;
 
 // supplementary functions
 // Last 4 digits of ChipID
@@ -313,9 +315,15 @@ void loop()
   str[0] = ",N:";
   str[0] += String(getUniqueID(), HEX);
 #ifdef VERBOSE_PC
-  str[0] += ",I:";
+  str[0] += ",C:";
   str[0] += msgCounter;
 #endif
+
+  // random packet id
+  randomSeed(analogRead(0));
+  pid = random(1, 99);
+  str[0] += ",X:";
+  str[0] += pid;
 
 #ifdef SENSOR_TYPE_pir
   if (motionDetected)

@@ -25,6 +25,10 @@ Z:60,N:87,T1:29,H1:817,T2:25,T3:42,P1:9260,A1:753,V1:38
 
 Z = acknowledge character & packet length
 N = node number
+X = random packet id
+C = packet counter
+R = retained (default 1)
+
 T = temperature
 H = humidity
 P = pressure
