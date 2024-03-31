@@ -37,13 +37,18 @@ VoltageReference vRef;
 // wakeup
 boolean wakeup_state = false;
 
+#ifdef SENSOR_TYPE_button
+boolean buttonChanged = false;
+boolean buttonState = LOW;
+#endif
+
 #ifdef SENSOR_TYPE_pir
 boolean motionDetected = false;
 boolean pirState = LOW;
 #endif
 
 #ifdef SENSOR_TYPE_switch
-boolean switchChanged = false;
+boolean switchChanged = true;
 boolean switchState = LOW;
 #endif
 
@@ -157,6 +162,15 @@ void sleepDeep()
 {
   sleepDeep(0);
 }
+
+#ifdef SENSOR_TYPE_button
+void wakeInterruptButton()
+{
+  Serial.println("Wakeup interrupt button...");
+  buttonState = digitalRead(SENSOR_PIN_BUTTON);
+  buttonChanged = true;
+}
+#endif
 
 #ifdef SENSOR_TYPE_pir
 void wakeInterruptPir()
@@ -280,6 +294,15 @@ void setup()
   }
 #endif
 
+// button
+#ifdef SENSOR_TYPE_button
+  pinMode(SENSOR_PIN_BUTTON, INPUT_PULLUP);
+  Serial.print(SENSOR_TYPE_button);
+  Serial.print(": ");
+  Serial.println(digitalRead(SENSOR_PIN_BUTTON) == HIGH ? "HIGH" : "LOW");
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_BUTTON), wakeInterruptButton, RISING);
+#endif
+
 // pir
 #ifdef SENSOR_TYPE_pir
   pinMode(SENSOR_PIN_PIR, INPUT);
@@ -293,9 +316,11 @@ void setup()
 // switch
 #ifdef SENSOR_TYPE_switch
   pinMode(SENSOR_PIN_SWITCH, INPUT_PULLUP);
+#ifdef DEBUG
   Serial.print(SENSOR_TYPE_switch);
   Serial.print(": ");
   Serial.println(digitalRead(SENSOR_PIN_SWITCH) == HIGH ? "HIGH" : "LOW");
+#endif
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_SWITCH), wakeInterruptSwitch, CHANGE);
 #endif
 }
@@ -323,6 +348,20 @@ void loop()
   pid = random(99) + 1;
   str[0] += ",X:";
   str[0] += pid;
+
+#ifdef SENSOR_TYPE_button
+  if (buttonDetected)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_button);
+    Serial.print(": ");
+    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
+#endif
+    str[0] += ",B1:";
+    str[0] += int(buttonState == HIGH ? 1 : 0);
+    buttonDetected = false;
+  }
+#endif
 
 #ifdef SENSOR_TYPE_pir
   if (motionDetected)
@@ -599,6 +638,8 @@ void loop()
 #ifdef SENSOR_TYPE_pir
   sleepDeep();
 #elif defined(SENSOR_TYPE_switch)
+  sleepDeep();
+#elif defined(SENSOR_TYPE_button)
   sleepDeep();
 #else
   sleepDeep(DS_L);

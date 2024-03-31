@@ -36,6 +36,7 @@ A = altitude
 V = voltage
 M = motion
 S = switch
+B = button
 
 , = delimiter
 
