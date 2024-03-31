@@ -320,8 +320,7 @@ void loop()
 #endif
 
   // random packet id
-  randomSeed(analogRead(0));
-  pid = random(1, 99);
+  pid = random(99) + 1;
   str[0] += ",X:";
   str[0] += pid;
 
