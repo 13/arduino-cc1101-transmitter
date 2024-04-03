@@ -82,7 +82,7 @@ int getUniqueID()
     EEPROM.get(address, serialNumber);
     uid = serialNumber;
 #ifdef DEBUG
-    Serial.print("[EEPROM]: SN ");
+    Serial.print("EEPROM: SN ");
     Serial.print(uid);
     Serial.print(" -> HEX ");
     Serial.println(String(serialNumber, HEX));
@@ -97,7 +97,7 @@ int getUniqueID()
     EEPROM.get(address, serialNumber);
     uid = serialNumber;
 #ifdef DEBUG
-    Serial.print("[EEPROM]: GENERATING SN ");
+    Serial.print("EEPROM: GENERATING SN ");
     Serial.print(uid);
     Serial.print(" -> HEX ");
     Serial.println(String(serialNumber, HEX));
@@ -121,7 +121,7 @@ int setUniqueID()
   EEPROM.get(address, serialNumber);
   uid = serialNumber;
 #ifdef VERBOSE
-  Serial.print("> [EEPROM]: GENERATING SN ");
+  Serial.print("> EEPROM: GENERATING SN ");
   Serial.print(uid);
   Serial.print(" -> HEX ");
   Serial.println(String(serialNumber, HEX));
@@ -223,6 +223,9 @@ void setup()
 #endif
 #ifdef SEND_BYTE
   Serial.print(F("BYTE "));
+#endif
+#ifdef USE_CRYPTO
+  Serial.print(F("CRYPTO "));
 #endif
 #ifdef DEBUG
   Serial.print(F("DEBUG"));
@@ -611,6 +614,7 @@ void loop()
         str[i].toCharArray(charArr, str[i].length() + 1);
 
 #ifdef USE_CRYPTO
+        Serial.println(F("crypto: Encrypting packet... "));
         // Encrypt the byte array in blocks of 16 bytes
         int blockCount = str[i].length() / 16 + 1;
         for (int i = 0; i < blockCount; ++i)
@@ -618,33 +622,12 @@ void loop()
           aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
         }
 #ifdef DEBUG
-        Serial.print("Enc: ");
+        Serial.print("crypto: ");
         for (int j = 0; j < sizeof(cipher); j++)
         {
           Serial.write(cipher[j]);
         }
         Serial.println();
-#endif
-/*
-        // Decrypt the cipher
-        aes128.decryptBlock(decryptedText, cipher);
-
-        int blockCountR = str[i].length() / 16 + 1;
-        for (int i = 0; i < blockCountR; ++i)
-        {
-          aes128.decryptBlock(&decryptedText[i * 16], &cipher[i * 16]);
-        }
-*/
-#ifdef DEBUG
-/*
-        Serial.println();
-        Serial.print("Dec: ");
-        for (int i = 0; i < sizeof(decryptedText); i++)
-        {
-          Serial.write(decryptedText[i]);
-        }
-        Serial.println();
-*/
 #endif
 #endif
 
