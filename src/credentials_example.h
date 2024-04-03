@@ -27,9 +27,10 @@
 //#define SEND_BYTE
 
 // Crypto
+// openssl enc -aes-128-cbc -k secret -P -md sha1 -pbkdf2
 // #define USE_CRYPTO // Decryption
 #ifdef USE_CRYPTO
-byte key[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+#define AES_KEY "88D9A08DECF4C1D68BA9A1E36C172461"
 #endif
 
 // Sensor pins

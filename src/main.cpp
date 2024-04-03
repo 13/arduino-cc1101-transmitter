@@ -64,9 +64,18 @@ uint16_t msgCounter = 1;
 uint16_t pid = 0;
 
 #ifdef USE_CRYPTO
+byte key[16];
 byte cipher[61];
 byte decryptedText[61];
 AES128 aes128;
+
+void hexStringToByteArray(const char *hexString, byte *byteArray, size_t byteArrayLength)
+{
+  for (size_t i = 0; i < byteArrayLength; i++)
+  {
+    byteArray[i] = strtoul(hexString + 2 * i, NULL, 16);
+  }
+}
 #endif
 
 // supplementary functions
@@ -278,6 +287,7 @@ void setup()
   vRef.begin();
 
 #ifdef USE_CRYPTO
+  hexStringToByteArray(AES_KEY, key, 16);
   aes128.setKey(key, 16); // Setting Key for AES
 #endif
 
