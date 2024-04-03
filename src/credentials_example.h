@@ -1,10 +1,10 @@
 // Disable/enable sensors
-// #define SENSOR_TYPE_si7021   "si7021"
-// #define SENSOR_TYPE_ds18b20  "ds18b20"
-// #define SENSOR_TYPE_bmp280   "bmp280"
+#define SENSOR_TYPE_si7021   "si7021"
+#define SENSOR_TYPE_ds18b20  "ds18b20"
+#define SENSOR_TYPE_bmp280   "bmp280"
 // #define SENSOR_TYPE_bme680   "bme680"
 // #define SENSOR_TYPE_pir      "pir"
-#define SENSOR_TYPE_switch "switch"
+// #define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
 #define VERBOSE // Always enabled
@@ -27,10 +27,10 @@
 //#define SEND_BYTE
 
 // Crypto
-// openssl enc -aes-128-cbc -k secret -P -md sha1 -pbkdf2
-// #define USE_CRYPTO // Decryption
+// openssl rand -hex 16
+#define USE_CRYPTO
 #ifdef USE_CRYPTO
-#define AES_KEY "88D9A08DECF4C1D68BA9A1E36C172461"
+#define AES_KEY "808639b9d210f261fefcce5a85c0cadb"
 #endif
 
 // Sensor pins

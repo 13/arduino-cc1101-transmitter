@@ -71,10 +71,30 @@ AES128 aes128;
 
 void hexStringToByteArray(const char *hexString, byte *byteArray, size_t byteArrayLength)
 {
-  for (size_t i = 0; i < byteArrayLength; i++)
+  size_t hexStringLength = strlen(hexString);
+
+  if (hexStringLength % 2 != 0 || hexStringLength / 2 != byteArrayLength)
   {
-    byteArray[i] = strtoul(hexString + 2 * i, NULL, 16);
+    Serial.print(F("CRYPTO: KEY INVALID"));
+    // Invalid hex string length or mismatch with byte array length
+    return;
   }
+#ifdef DEBUG
+  Serial.print(F("CRYPTO: KEY "));
+#endif
+  for (size_t i = 0; i < hexStringLength; i += 2)
+  {
+    // Convert each pair of hexadecimal characters to a byte
+    sscanf(hexString + i, "%2hhx", &byteArray[i / 2]);
+#ifdef DEBUG
+    Serial.print(F("0x"));
+    Serial.print(byteArray[i / 2], HEX);
+    Serial.print(F(" "));
+#endif
+  }
+#ifdef DEBUG
+  Serial.println();
+#endif
 }
 #endif
 
@@ -91,9 +111,9 @@ int getUniqueID()
     EEPROM.get(address, serialNumber);
     uid = serialNumber;
 #ifdef DEBUG
-    Serial.print("EEPROM: SN ");
+    Serial.print(F("EEPROM: SN "));
     Serial.print(uid);
-    Serial.print(" -> HEX ");
+    Serial.print(F(" -> HEX "));
     Serial.println(String(serialNumber, HEX));
 #endif
   }
@@ -106,9 +126,9 @@ int getUniqueID()
     EEPROM.get(address, serialNumber);
     uid = serialNumber;
 #ifdef DEBUG
-    Serial.print("EEPROM: GENERATING SN ");
+    Serial.print(F("EEPROM: GENERATING SN "));
     Serial.print(uid);
-    Serial.print(" -> HEX ");
+    Serial.print(F(" -> HEX "));
     Serial.println(String(serialNumber, HEX));
 #endif
   }
@@ -130,9 +150,9 @@ int setUniqueID()
   EEPROM.get(address, serialNumber);
   uid = serialNumber;
 #ifdef VERBOSE
-  Serial.print("> EEPROM: GENERATING SN ");
+  Serial.print(F("> EEPROM: GENERATING SN "));
   Serial.print(uid);
-  Serial.print(" -> HEX ");
+  Serial.print(F(" -> HEX "));
   Serial.println(String(serialNumber, HEX));
 #endif
 
@@ -147,21 +167,21 @@ int setUniqueID()
 */
 void sleepDeep(uint8_t t)
 {
-  Serial.print("SleepDeep ");
+  Serial.print(F("SleepDeep "));
   if (t < 1)
   {
-    Serial.println("forever...");
+    Serial.println(F("forever..."));
   }
   else if (t < 8)
   {
     t = t * 60;
     Serial.print(t);
-    Serial.println("min...");
+    Serial.println(F("min..."));
   }
   else
   {
     Serial.print(t);
-    Serial.println("s...");
+    Serial.println(F("s..."));
   }
   ELECHOUSE_cc1101.goSleep();
   delay(DS_D);
@@ -185,7 +205,7 @@ void sleepDeep()
 #ifdef SENSOR_TYPE_button
 void wakeInterruptButton()
 {
-  Serial.println("Wakeup interrupt button...");
+  Serial.println(F("Wakeup interrupt button..."));
   buttonState = digitalRead(SENSOR_PIN_BUTTON);
   buttonChanged = true;
 }
@@ -194,7 +214,7 @@ void wakeInterruptButton()
 #ifdef SENSOR_TYPE_pir
 void wakeInterruptPir()
 {
-  Serial.println("Wakeup interrupt pir...");
+  Serial.println(F("Wakeup interrupt pir..."));
   pirState = digitalRead(SENSOR_PIN_PIR);
   motionDetected = true;
 }
@@ -203,7 +223,7 @@ void wakeInterruptPir()
 #ifdef SENSOR_TYPE_switch
 void wakeInterruptSwitch()
 {
-  Serial.println("Wakeup interrupt switch...");
+  Serial.println(F("Wakeup interrupt switch..."));
   switchState = digitalRead(SENSOR_PIN_SWITCH);
   switchChanged = true;
 }
@@ -222,7 +242,7 @@ void setup()
   Serial.print(F("> Booting... Compiled: "));
   Serial.println(VERSION);
 #ifdef VERBOSE
-  Serial.print(("> Mode: "));
+  Serial.print(F("> Mode: "));
   Serial.print(F("VERBOSE "));
 #ifdef GD0
   Serial.print(F("GD0 "));
@@ -299,8 +319,8 @@ void setup()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_si7021);
-    Serial.print(": ");
-    Serial.println("Not detected");
+    Serial.print(F(": "));
+    Serial.println(F("Not detected"));
 #endif
   }
 #endif
@@ -318,8 +338,8 @@ void setup()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bme680);
-    Serial.print(": ");
-    Serial.println(" Not detected");
+    Serial.print(F(": "));
+    Serial.println(F(" Not detected"));
 #endif
   }
 #endif
@@ -328,7 +348,7 @@ void setup()
 #ifdef SENSOR_TYPE_button
   pinMode(SENSOR_PIN_BUTTON, INPUT_PULLUP);
   Serial.print(SENSOR_TYPE_button);
-  Serial.print(": ");
+  Serial.print(F(": "));
   Serial.println(digitalRead(SENSOR_PIN_BUTTON) == HIGH ? "HIGH" : "LOW");
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_BUTTON), wakeInterruptButton, RISING);
 #endif
@@ -337,7 +357,7 @@ void setup()
 #ifdef SENSOR_TYPE_pir
   pinMode(SENSOR_PIN_PIR, INPUT);
   Serial.print(SENSOR_TYPE_pir);
-  Serial.print(": ");
+  Serial.print(F(": "));
   Serial.println(digitalRead(SENSOR_PIN_PIR) == HIGH ? "HIGH" : "LOW");
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_PIR), wakeInterruptPir, RISING);
   sleepDeep();
@@ -348,7 +368,7 @@ void setup()
   pinMode(SENSOR_PIN_SWITCH, INPUT_PULLUP);
 #ifdef DEBUG
   Serial.print(SENSOR_TYPE_switch);
-  Serial.print(": ");
+  Serial.print(F(": "));
   Serial.println(digitalRead(SENSOR_PIN_SWITCH) == HIGH ? "HIGH" : "LOW");
 #endif
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_SWITCH), wakeInterruptSwitch, CHANGE);
@@ -359,7 +379,7 @@ void loop()
 {
   if (wakeup_state)
   {
-    Serial.println("Wakeup...");
+    Serial.println(F("Wakeup..."));
   }
   else
   {
@@ -384,7 +404,7 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_button);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
 #endif
     str[0] += ",B1:";
@@ -398,7 +418,7 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_pir);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.println(pirState == HIGH ? "HIGH" : "LOW");
 #endif
     str[0] += ",M1:";
@@ -412,7 +432,7 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_switch);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.println(switchState == HIGH ? "HIGH" : "LOW");
 #endif
     str[0] += ",S1:";
@@ -428,11 +448,11 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_si7021);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.print(si_temperature);
-    Serial.print("C, ");
+    Serial.print(F("C, "));
     Serial.print(si_humidity);
-    Serial.println("%");
+    Serial.println(F("%"));
 #endif
     str[0] += ",T1:";
     str[0] += int(round(si_temperature * 10));
@@ -446,13 +466,13 @@ void loop()
   float ds_temperature = ds18b20.getTempCByIndex(0);
 #ifdef VERBOSE
   Serial.print(SENSOR_TYPE_ds18b20);
-  Serial.print(": ");
+  Serial.print(F(": "));
 #endif
   if (ds_temperature != DEVICE_DISCONNECTED_C)
   {
 #ifdef VERBOSE
     Serial.print(ds_temperature);
-    Serial.println("C");
+    Serial.println(F("C"));
 #endif
     str[0] += ",T2:";
     str[0] += int(round(ds_temperature * 10));
@@ -460,7 +480,7 @@ void loop()
 #ifdef VERBOSE
   else
   {
-    Serial.println("Not detected");
+    Serial.println(F("Not detected"));
   }
 #endif
 #endif
@@ -472,11 +492,11 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bmp280);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.print(bmp280_temperature - bmp280_temp_offset);
-    Serial.print("C, ");
+    Serial.print(F("C, "));
     Serial.print(bmp280_pressure);
-    Serial.println("Pa");
+    Serial.println(F("Pa"));
 #endif
     str[0] += ",T3:";
     str[0] += int(round((bmp280_temperature + bmp280_temp_offset) * 10));
@@ -488,7 +508,7 @@ void loop()
   if (!bme680.performReading())
   {
 #ifdef VERBOSE
-    Serial.println("[BME680]: ERROR read!");
+    Serial.println(F("[BME680]: ERROR read!"));
 #endif
     sleepDeep(255);
   }
@@ -500,15 +520,15 @@ void loop()
   {
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_bme680);
-    Serial.print(": ");
+    Serial.print(F(": "));
     Serial.print(bme680_temperature);
-    Serial.print("C, ");
+    Serial.print(F("C, "));
     Serial.print(bme680_humidity);
-    Serial.print("%, ");
+    Serial.print(F("%, "));
     Serial.print(bme680_pressure);
-    Serial.print("hPa, ");
+    Serial.print(F("hPa, "));
     Serial.print(bme680_gas);
-    Serial.println("KOhms");
+    Serial.println(F("KOhms"));
 #endif
     str[0] += ",T4:";
     str[0] += int(round(bme680_temperature * 10));
@@ -523,7 +543,7 @@ void loop()
 #endif
   float vcc = vRef.readVcc() / 1000.0;
 #ifdef VERBOSE
-  Serial.print("VCC: ");
+  Serial.print(F("VCC: "));
   Serial.println(vcc);
 #endif
   str[0] += ",V1:";
@@ -624,7 +644,7 @@ void loop()
         str[i].toCharArray(charArr, str[i].length() + 1);
 
 #ifdef USE_CRYPTO
-        Serial.println(F("crypto: Encrypting packet... "));
+        Serial.println(F("crypto: Encrypting.... OK"));
         // Encrypt the byte array in blocks of 16 bytes
         int blockCount = str[i].length() / 16 + 1;
         for (int i = 0; i < blockCount; ++i)
@@ -632,7 +652,7 @@ void loop()
           aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
         }
 #ifdef DEBUG
-        Serial.print("crypto: ");
+        Serial.print(F("crypto: "));
         for (int j = 0; j < sizeof(cipher); j++)
         {
           Serial.write(cipher[j]);
