@@ -5,6 +5,10 @@
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <version.h>
 #include <credentials.h>
+#ifdef USE_CRYPTO
+#include <Crypto.h>
+#include <AES.h>
+#endif
 
 // Edit credentials.h
 
@@ -58,6 +62,12 @@ uint16_t msgCounter = 1;
 #endif
 // random packet id
 uint16_t pid = 0;
+
+#ifdef USE_CRYPTO
+byte cipher[61];
+byte decryptedText[61];
+AES128 aes128;
+#endif
 
 // supplementary functions
 // Last 4 digits of ChipID
@@ -263,6 +273,13 @@ void setup()
   digitalWrite(13, LOW); // Fix turn LED off
   // voltage
   vRef.begin();
+
+#ifdef USE_CRYPTO
+  aes128.setKey(key, 16); // Setting Key for AES
+#endif
+
+  // Generate Random Seed
+  randomSeed(analogRead(0));
 
 #ifdef SENSOR_TYPE_si7021
   if (!si.begin())
@@ -517,6 +534,8 @@ void loop()
   // Split packets
   // maxPacketSize (61) - leadingTupleLength ('Z:44')
   // 61 - 4 = [57]
+  // With Termination char ";"
+  // 61 - 5 = [56]
   int str_diff = 57 - str[0].length();
   int strCount = 1;
 
@@ -564,6 +583,12 @@ void loop()
         Serial.print(F("> DEBUG: "));
         Serial.println(str[i]);
 #endif
+// Transmission
+#ifdef SEND_BYTE
+        // Transmit byte format
+        byte byteArr[str[i].length() + 1];
+        str[i].getBytes(byteArr, str[i].length() + 1);
+        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
 
 #ifdef VERBOSE
 #ifdef DEBUG
@@ -573,11 +598,6 @@ void loop()
 #endif
 #endif
 
-#ifdef SEND_BYTE
-        // Transmit byte format
-        byte byteArr[str[i].length() + 1];
-        str[i].getBytes(byteArr, str[i].length() + 1);
-        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
 #ifdef GD0
         ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
 #else
@@ -589,8 +609,59 @@ void loop()
         // Transmit char format
         char charArr[str[i].length() + 1];
         str[i].toCharArray(charArr, str[i].length() + 1);
+
+#ifdef USE_CRYPTO
+        // Encrypt the byte array in blocks of 16 bytes
+        int blockCount = str[i].length() / 16 + 1;
+        for (int i = 0; i < blockCount; ++i)
+        {
+          aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
+        }
+#ifdef DEBUG
+        Serial.print("Enc: ");
+        for (int j = 0; j < sizeof(cipher); j++)
+        {
+          Serial.write(cipher[j]);
+        }
+        Serial.println();
+#endif
+/*
+        // Decrypt the cipher
+        aes128.decryptBlock(decryptedText, cipher);
+
+        int blockCountR = str[i].length() / 16 + 1;
+        for (int i = 0; i < blockCountR; ++i)
+        {
+          aes128.decryptBlock(&decryptedText[i * 16], &cipher[i * 16]);
+        }
+*/
+#ifdef DEBUG
+/*
+        Serial.println();
+        Serial.print("Dec: ");
+        for (int i = 0; i < sizeof(decryptedText); i++)
+        {
+          Serial.write(decryptedText[i]);
+        }
+        Serial.println();
+*/
+#endif
+#endif
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... "));
+#else
+        Serial.print(F("cc1101: Transmitting packet... "));
+#endif
+#endif
+
 #ifdef GD0
+#ifdef USE_CRYPTO
+        ELECHOUSE_cc1101.SendData(cipher);
+#else
         ELECHOUSE_cc1101.SendData(charArr);
+#endif
 #else
         ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
 

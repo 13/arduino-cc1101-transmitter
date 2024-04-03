@@ -39,6 +39,7 @@ S = switch
 B = button
 
 , = delimiter
+! = packet end
 
 X1 = si7021
 X2 = ds18b20
