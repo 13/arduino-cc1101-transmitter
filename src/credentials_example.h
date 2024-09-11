@@ -1,9 +1,10 @@
 // Disable/enable sensors
-#define SENSOR_TYPE_si7021   "si7021"
-#define SENSOR_TYPE_ds18b20  "ds18b20"
-#define SENSOR_TYPE_bmp280   "bmp280"
+// #define SENSOR_TYPE_si7021   "si7021"
+// #define SENSOR_TYPE_ds18b20  "ds18b20"
+// #define SENSOR_TYPE_bmp280   "bmp280"
 // #define SENSOR_TYPE_bme680   "bme680"
 // #define SENSOR_TYPE_pir      "pir"
+#define SENSOR_TYPE_radar       "radar"
 // #define SENSOR_TYPE_switch "switch"
 
 // OUTPUT
@@ -28,7 +29,7 @@
 
 // Crypto
 // openssl rand -hex 16
-#define USE_CRYPTO
+// #define USE_CRYPTO
 #ifdef USE_CRYPTO
 #define AES_KEY "808639b9d210f261fefcce5a85c0cadb"
 #endif
@@ -39,6 +40,10 @@
 #endif
 #ifdef SENSOR_TYPE_pir
 #define SENSOR_PIN_PIR 3
+#define MQTT_RETAINED_DISABLED
+#endif
+#ifdef SENSOR_TYPE_radar
+#define SENSOR_PIN_RADAR 3
 #define MQTT_RETAINED_DISABLED
 #endif
 #ifdef SENSOR_TYPE_switch

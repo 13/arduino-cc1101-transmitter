@@ -51,6 +51,11 @@ boolean motionDetected = false;
 boolean pirState = LOW;
 #endif
 
+#ifdef SENSOR_TYPE_radar
+boolean motionDetected = false;
+boolean radarState = LOW;
+#endif
+
 #ifdef SENSOR_TYPE_switch
 boolean switchChanged = true;
 boolean switchState = LOW;
@@ -220,6 +225,15 @@ void wakeInterruptPir()
 }
 #endif
 
+#ifdef SENSOR_TYPE_radar
+void wakeInterruptRadar()
+{
+  Serial.println(F("Wakeup interrupt radar..."));
+  radarState = digitalRead(SENSOR_PIN_RADAR);
+  motionDetected = true;
+}
+#endif
+
 #ifdef SENSOR_TYPE_switch
 void wakeInterruptSwitch()
 {
@@ -228,6 +242,362 @@ void wakeInterruptSwitch()
   switchChanged = true;
 }
 #endif
+
+// Function definitions
+
+void handleWakeup()
+{
+  if (wakeup_state)
+  {
+    Serial.println(F("Wakeup..."));
+  }
+  else
+  {
+    wakeup_state = true;
+  }
+}
+
+String prepareMessage()
+{
+  String msg = ",N:";
+  msg += String(getUniqueID(), HEX);
+
+#ifdef VERBOSE_PC
+  msg += ",C:";
+  msg += msgCounter;
+#endif
+
+  // Random packet id
+  pid = random(99) + 1;
+  msg += ",X:";
+  msg += pid;
+
+  return msg;
+}
+
+#ifdef SENSOR_TYPE_button
+String handleSensorButton()
+{
+  String msg = "";
+  if (buttonDetected)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_button);
+    Serial.print(F(": "));
+    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
+#endif
+    msg += ",B1:";
+    msg += int(buttonState == HIGH ? 1 : 0);
+    buttonDetected = false;
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_pir
+String handleSensorPir()
+{
+  String msg = "";
+  if (motionDetected)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_pir);
+    Serial.print(F(": "));
+    Serial.println(pirState == HIGH ? "HIGH" : "LOW");
+#endif
+    msg += ",M1:";
+    msg += int(pirState == HIGH ? 1 : 0);
+    motionDetected = false;
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_radar
+String handleSensorRadar()
+{
+  String msg = "";
+  motionDetected = true;
+  if (motionDetected)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_radar);
+    Serial.print(F(": "));
+    Serial.println(radarState == HIGH ? "HIGH" : "LOW");
+#endif
+    msg += ",M1:";
+    msg += int(radarState == HIGH ? 1 : 0);
+    motionDetected = false;
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_switch
+String handleSensorSwitch()
+{
+  String msg = "";
+  if (switchChanged)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_switch);
+    Serial.print(F(": "));
+    Serial.println(switchState == HIGH ? "HIGH" : "LOW");
+#endif
+    msg += ",S1:";
+    msg += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
+    switchChanged = false;
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_si7021
+String handleSensorSi7021()
+{
+  String msg = "";
+  float si_temperature = si.readTemperature();
+  float si_humidity = si.readHumidity();
+  if (!isnan(si_temperature))
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_si7021);
+    Serial.print(F(": "));
+    Serial.print(si_temperature);
+    Serial.print(F("C, "));
+    Serial.print(si_humidity);
+    Serial.println(F("%"));
+#endif
+    msg += ",T1:" + String(int(round(si_temperature * 10)));
+    msg += ",H1:" + String(int(round(si_humidity * 10)));
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_ds18b20
+String handleSensorDs18b20()
+{
+  String msg = "";
+  ds18b20.requestTemperatures();
+  float ds_temperature = ds18b20.getTempCByIndex(0);
+  if (ds_temperature != DEVICE_DISCONNECTED_C)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_ds18b20);
+    Serial.print(F(": "));
+    Serial.println(ds_temperature);
+#endif
+    msg += ",T2:" + String(int(round(ds_temperature * 10)));
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_bmp280
+String handleSensorBmp280()
+{
+  String msg = "";
+  float bmp280_temperature = bmp280.readTemperature();
+  float bmp280_pressure = bmp280.readPressure();
+  if (!isnan(bmp280_pressure) && bmp280_pressure > 0)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_bmp280);
+    Serial.print(F(": "));
+    Serial.print(bmp280_temperature);
+    Serial.print(F("C, "));
+    Serial.print(bmp280_pressure);
+    Serial.println(F("Pa"));
+#endif
+    msg += ",T3:" + String(int(round(bmp280_temperature * 10)));
+    msg += ",P3:" + String(int(round(bmp280_pressure) / 10));
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_bme680
+String handleSensorBme680()
+{
+  String msg = "";
+  if (!bme680.performReading())
+  {
+#ifdef VERBOSE
+    Serial.println(F("[BME680]: ERROR read!"));
+#endif
+    sleepDeep(255);
+  }
+
+  float bme680_temperature = bme680.temperature;
+  float bme680_humidity = bme680.humidity;
+  float bme680_pressure = bme680.pressure / 100.0;
+  float bme680_gas = bme680.gas_resistance / 1000.0;
+
+  if (!isnan(bme680_temperature))
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_bme680);
+    Serial.print(F(": "));
+    Serial.print(bme680_temperature);
+    Serial.print(F("C, "));
+    Serial.print(bme680_humidity);
+    Serial.print(F("%, "));
+    Serial.print(bme680_pressure);
+    Serial.print(F("hPa, "));
+    Serial.print(bme680_gas);
+    Serial.println(F("KOhms"));
+#endif
+    msg += ",T4:" + String(int(round(bme680_temperature * 10)));
+    msg += ",H4:" + String(int(round(bme680_humidity * 10)));
+    msg += ",P4:" + String(int(round(bme680_pressure * 10)));
+    msg += ",Q4:" + String(int(round(bme680_gas)));
+  }
+  return msg;
+}
+#endif
+
+String handleVcc()
+{
+  float vcc = vRef.readVcc() / 1000.0;
+#ifdef VERBOSE
+  Serial.print(F("VCC: "));
+  Serial.println(vcc);
+#endif
+  String msg = ",V1:" + String(int(vcc)) + String((int)(vcc * 10) % 10);
+  return msg;
+}
+
+void transmitData(String *str, int strCount)
+{
+  if (cc1101_state)
+  {
+    for (uint8_t i = 0; i < strCount; i++)
+    {
+      if (str[i].length() != 0)
+      {
+#ifdef FILL_STRING
+        // Fill to String length 57, thus total is 61
+        for (uint8_t j = str[i].length(); j < 56; j++)
+        {
+          str[i] += ".";
+        }
+#endif
+        // Add leadingTuple 'Z:' with length of String
+        str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
+
+#ifdef DEBUG
+        Serial.print(F("> DEBUG: "));
+        Serial.println(str[i]);
+#endif
+// Transmission logic
+#ifdef SEND_BYTE
+        // Transmit byte format
+        byte byteArr[str[i].length() + 1];
+        str[i].getBytes(byteArr, str[i].length() + 1);
+        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... "));
+#else
+        Serial.print(F("cc1101: Transmitting packet... "));
+#endif
+#endif
+
+#ifdef GD0
+        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
+#else
+        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
+#endif
+#endif
+
+#ifdef SEND_CHAR
+        // Transmit char format
+        char charArr[str[i].length() + 1];
+        str[i].toCharArray(charArr, str[i].length() + 1);
+
+#ifdef USE_CRYPTO
+        Serial.println(F("crypto: Encrypting.... OK"));
+        // Encrypt the byte array in blocks of 16 bytes
+        int blockCount = str[i].length() / 16 + 1;
+        for (int i = 0; i < blockCount; ++i)
+        {
+          aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
+        }
+#ifdef DEBUG
+        Serial.print(F("crypto: "));
+        for (int j = 0; j < sizeof(cipher); j++)
+        {
+          Serial.write(cipher[j]);
+        }
+        Serial.println();
+#endif
+#endif
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... "));
+#else
+        Serial.print(F("cc1101: Transmitting packet... "));
+#endif
+#endif
+
+#ifdef GD0
+#ifdef USE_CRYPTO
+        ELECHOUSE_cc1101.SendData(cipher);
+#else
+        ELECHOUSE_cc1101.SendData(charArr);
+#endif
+#else
+        ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
+
+#endif
+#endif
+
+#ifdef VERBOSE
+#ifdef DEBUG
+        Serial.println(F("cc1101: Transmitting packet... OK"));
+        Serial.print(F("> Packet Length: "));
+#ifdef SEND_CHAR
+        Serial.println(strlen(charArr));
+#endif
+#ifdef SEND_BYTE
+        Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
+#endif
+#else
+        Serial.println(F("OK"));
+#endif
+#endif
+        Serial.println(str[i]);
+      }
+      // delay multi send
+      if (strCount > 1)
+      {
+        delay(CC_DELAY);
+      }
+    }
+  }
+  else
+  {
+    Serial.println(F("cc1101: Not transmitting"));
+  }
+}
+
+void sleepDevice()
+{
+#ifdef SENSOR_TYPE_pir
+  sleepDeep();
+#elif defined(SENSOR_TYPE_radar)
+  sleepDeep();
+#elif defined(SENSOR_TYPE_switch)
+  sleepDeep();
+#elif defined(SENSOR_TYPE_button)
+  sleepDeep();
+#else
+  sleepDeep(DS_L);
+#endif
+}
 
 void setup()
 {
@@ -363,6 +733,15 @@ void setup()
   sleepDeep();
 #endif
 
+// radar
+#ifdef SENSOR_TYPE_radar
+  pinMode(SENSOR_PIN_RADAR, INPUT);
+  Serial.print(SENSOR_TYPE_radar);
+  Serial.print(F(": "));
+  Serial.println(digitalRead(SENSOR_PIN_RADAR) == HIGH ? "HIGH" : "LOW");
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_RADAR), wakeInterruptRadar, CHANGE);
+#endif
+
 // switch
 #ifdef SENSOR_TYPE_switch
   pinMode(SENSOR_PIN_SWITCH, INPUT_PULLUP);
@@ -377,209 +756,59 @@ void setup()
 
 void loop()
 {
-  if (wakeup_state)
-  {
-    Serial.println(F("Wakeup..."));
-  }
-  else
-  {
-    wakeup_state = true;
-  }
-  // prepare msg string
+  handleWakeup();
+
+  // Prepare message string
   String str[3];
-  str[0] = ",N:";
-  str[0] += String(getUniqueID(), HEX);
-#ifdef VERBOSE_PC
-  str[0] += ",C:";
-  str[0] += msgCounter;
-#endif
+  str[0] = prepareMessage();
 
-  // random packet id
-  pid = random(99) + 1;
-  str[0] += ",X:";
-  str[0] += pid;
-
+  // Append sensor readings
 #ifdef SENSOR_TYPE_button
-  if (buttonDetected)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_button);
-    Serial.print(F(": "));
-    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
+  str[0] += handleSensorButton();
 #endif
-    str[0] += ",B1:";
-    str[0] += int(buttonState == HIGH ? 1 : 0);
-    buttonDetected = false;
-  }
-#endif
-
 #ifdef SENSOR_TYPE_pir
-  if (motionDetected)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_pir);
-    Serial.print(F(": "));
-    Serial.println(pirState == HIGH ? "HIGH" : "LOW");
+  str[0] += handleSensorPir();
 #endif
-    str[0] += ",M1:";
-    str[0] += int(pirState == HIGH ? 1 : 0);
-    motionDetected = false;
-  }
+#ifdef SENSOR_TYPE_radar
+  str[0] += handleSensorRadar();
 #endif
-
 #ifdef SENSOR_TYPE_switch
-  if (switchChanged)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_switch);
-    Serial.print(F(": "));
-    Serial.println(switchState == HIGH ? "HIGH" : "LOW");
+  str[0] += handleSensorSwitch();
 #endif
-    str[0] += ",S1:";
-    str[0] += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
-    switchChanged = false;
-  }
-#endif
-
 #ifdef SENSOR_TYPE_si7021
-  float si_temperature = si.readTemperature();
-  float si_humidity = si.readHumidity();
-  if (!isnan(si_temperature))
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_si7021);
-    Serial.print(F(": "));
-    Serial.print(si_temperature);
-    Serial.print(F("C, "));
-    Serial.print(si_humidity);
-    Serial.println(F("%"));
-#endif
-    str[0] += ",T1:";
-    str[0] += int(round(si_temperature * 10));
-    str[0] += ",H1:";
-    str[0] += int(round(si_humidity * 10));
-  }
-
+  str[0] += handleSensorSi7021();
 #endif
 #ifdef SENSOR_TYPE_ds18b20
-  ds18b20.requestTemperatures();
-  float ds_temperature = ds18b20.getTempCByIndex(0);
-#ifdef VERBOSE
-  Serial.print(SENSOR_TYPE_ds18b20);
-  Serial.print(F(": "));
-#endif
-  if (ds_temperature != DEVICE_DISCONNECTED_C)
-  {
-#ifdef VERBOSE
-    Serial.print(ds_temperature);
-    Serial.println(F("C"));
-#endif
-    str[0] += ",T2:";
-    str[0] += int(round(ds_temperature * 10));
-  }
-#ifdef VERBOSE
-  else
-  {
-    Serial.println(F("Not detected"));
-  }
-#endif
+  str[0] += handleSensorDs18b20();
 #endif
 #ifdef SENSOR_TYPE_bmp280
-  float bmp280_temperature = bmp280.readTemperature();
-  float bmp280_pressure = bmp280.readPressure();
-  float bmp280_temp_offset = 0;
-  if (!isnan(bmp280_pressure) || bmp280_pressure > 0)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_bmp280);
-    Serial.print(F(": "));
-    Serial.print(bmp280_temperature - bmp280_temp_offset);
-    Serial.print(F("C, "));
-    Serial.print(bmp280_pressure);
-    Serial.println(F("Pa"));
-#endif
-    str[0] += ",T3:";
-    str[0] += int(round((bmp280_temperature + bmp280_temp_offset) * 10));
-    str[0] += ",P3:";
-    str[0] += int(round(bmp280_pressure) / 10);
-  }
+  str[0] += handleSensorBmp280();
 #endif
 #ifdef SENSOR_TYPE_bme680
-  if (!bme680.performReading())
-  {
-#ifdef VERBOSE
-    Serial.println(F("[BME680]: ERROR read!"));
-#endif
-    sleepDeep(255);
-  }
-  float bme680_temperature = bme680.temperature;
-  float bme680_humidity = bme680.humidity;
-  float bme680_pressure = bme680.pressure / 100.0;
-  float bme680_gas = bme680.gas_resistance / 1000.0;
-  if (!isnan(bme680_temperature))
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_bme680);
-    Serial.print(F(": "));
-    Serial.print(bme680_temperature);
-    Serial.print(F("C, "));
-    Serial.print(bme680_humidity);
-    Serial.print(F("%, "));
-    Serial.print(bme680_pressure);
-    Serial.print(F("hPa, "));
-    Serial.print(bme680_gas);
-    Serial.println(F("KOhms"));
-#endif
-    str[0] += ",T4:";
-    str[0] += int(round(bme680_temperature * 10));
-    str[0] += ",H4:";
-    str[0] += int(round(bme680_humidity * 10));
-    str[0] += ",P4:";
-    str[0] += int(round(bme680_pressure * 10));
-    str[0] += ",Q4:";
-    str[0] += int(round(bme680_gas));
-  }
-
-#endif
-  float vcc = vRef.readVcc() / 1000.0;
-#ifdef VERBOSE
-  Serial.print(F("VCC: "));
-  Serial.println(vcc);
-#endif
-  str[0] += ",V1:";
-  str[0] += String(int(vcc)) + String((int)(vcc * 10) % 10);
-
-#ifdef MQTT_RETAINED_DISABLED
-  str[0] += ",R:0";
+  str[0] += handleSensorBme680();
 #endif
 
-#ifdef VERBOSE_FW
-  // Firmware version
-  str[0] += ",F:";
-  str[0] += String(VERSIONTAG);
-#endif
+  // Append voltage reading
+  str[0] += handleVcc();
 
-#ifdef DEBUG
-  Serial.print(F("> DEBUG: String Length "));
-  Serial.println(str[0].length());
-#endif
-
+  // Transmission handling
   // Split packets
   // maxPacketSize (61) - leadingTupleLength ('Z:44')
   // 61 - 4 = [57]
   // With Termination char ";"
   // 61 - 5 = [56]
-  int str_diff = 57 - str[0].length();
   int strCount = 1;
-
-  if (str_diff < 0)
+  if (str[0].length() > 57)
   {
+    // Handle message splitting if too long
     strCount = 3;
+    // Message splitting logic here...
+    // str[1] and str[2] splitting as in the original code
 #ifdef VERBOSE
     Serial.print(F("> String too long: "));
     Serial.println(str[0].length());
     Serial.print(F("> String diff: "));
-    Serial.println(str_diff);
+    Serial.println(57 - str[0].length());
     Serial.print(F("> String: "));
     Serial.println(str[0]);
 #endif
@@ -593,139 +822,9 @@ void loop()
     str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) +
              ',' + str[0].substring(str_middle + 1);
 #endif
-    str[0] = "";
+    str[0] = "";    
   }
 
-  if (cc1101_state)
-  {
-
-    for (uint8_t i = 0; i < strCount; i++)
-    {
-      if (str[i].length() != 0)
-      {
-#ifdef FILL_STRING
-        // Fill to String length 57, thus total is 61
-        for (uint8_t j = str[i].length(); j < 56; j++)
-        {
-          str[i] += ".";
-        }
-#endif
-        // Add leadingTuple 'Z:' with length of String
-        str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
-#ifdef DEBUG
-        Serial.print(F("> DEBUG: "));
-        Serial.println(str[i]);
-#endif
-// Transmission
-#ifdef SEND_BYTE
-        // Transmit byte format
-        byte byteArr[str[i].length() + 1];
-        str[i].getBytes(byteArr, str[i].length() + 1);
-        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
-
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... "));
-#else
-        Serial.print(F("cc1101: Transmitting packet... "));
-#endif
-#endif
-
-#ifdef GD0
-        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-#else
-        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
-#endif
-#endif
-
-#ifdef SEND_CHAR
-        // Transmit char format
-        char charArr[str[i].length() + 1];
-        str[i].toCharArray(charArr, str[i].length() + 1);
-
-#ifdef USE_CRYPTO
-        Serial.println(F("crypto: Encrypting.... OK"));
-        // Encrypt the byte array in blocks of 16 bytes
-        int blockCount = str[i].length() / 16 + 1;
-        for (int i = 0; i < blockCount; ++i)
-        {
-          aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
-        }
-#ifdef DEBUG
-        Serial.print(F("crypto: "));
-        for (int j = 0; j < sizeof(cipher); j++)
-        {
-          Serial.write(cipher[j]);
-        }
-        Serial.println();
-#endif
-#endif
-
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... "));
-#else
-        Serial.print(F("cc1101: Transmitting packet... "));
-#endif
-#endif
-
-#ifdef GD0
-#ifdef USE_CRYPTO
-        ELECHOUSE_cc1101.SendData(cipher);
-#else
-        ELECHOUSE_cc1101.SendData(charArr);
-#endif
-#else
-        ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
-
-#endif
-#endif
-
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... OK"));
-        Serial.print(F("> Packet Length: "));
-#ifdef SEND_CHAR
-        Serial.println(strlen(charArr));
-#endif
-#ifdef SEND_BYTE
-        Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
-#endif
-#else
-        Serial.println(F("OK"));
-#endif
-#endif
-        Serial.println(str[i]);
-      }
-      // delay multi send
-      if (strCount > 1)
-      {
-        delay(CC_DELAY);
-      }
-    }
-  }
-  else
-  {
-    Serial.println(F("cc1101: Not transmitting"));
-  }
-#ifdef VERBOSE_PC
-  if (msgCounter < UINT16_MAX)
-  {
-    msgCounter++;
-  }
-  else
-  {
-    msgCounter = 0;
-  }
-#endif
-
-#ifdef SENSOR_TYPE_pir
-  sleepDeep();
-#elif defined(SENSOR_TYPE_switch)
-  sleepDeep();
-#elif defined(SENSOR_TYPE_button)
-  sleepDeep();
-#else
-  sleepDeep(DS_L);
-#endif
+  transmitData(str, strCount);
+  sleepDevice();
 }
