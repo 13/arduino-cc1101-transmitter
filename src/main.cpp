@@ -317,7 +317,7 @@ String handleSensorPir()
 String handleSensorRadar()
 {
   String msg = "";
-  motionDetected = true;
+  // motionDetected = true;
   if (motionDetected)
   {
 #ifdef VERBOSE
@@ -739,7 +739,7 @@ void setup()
   Serial.print(SENSOR_TYPE_radar);
   Serial.print(F(": "));
   Serial.println(digitalRead(SENSOR_PIN_RADAR) == HIGH ? "HIGH" : "LOW");
-  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_RADAR), wakeInterruptRadar, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_RADAR), wakeInterruptRadar, RISING);
 #endif
 
 // switch
