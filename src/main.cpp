@@ -124,8 +124,15 @@ int getUniqueID()
   }
   else
   {
+#ifdef CUSTOM_UID
+#ifdef VERBOSE
+  Serial.print(F("> EEPROM: CUSTOM SN "));
+#endif
+    long randNumber = strtol(CUSTOM_UID, NULL, 16);
+#else
     randomSeed(analogRead(0));
     long randNumber = random(256, 4096);
+#endif
     EEPROM.put(address, randNumber);
     delay(100);
     EEPROM.get(address, serialNumber);
@@ -148,8 +155,15 @@ int setUniqueID()
   int address = 13;
   int serialNumber;
 
+#ifdef CUSTOM_UID
+#ifdef VERBOSE
+  Serial.print(F("> EEPROM: CUSTOM SN "));
+#endif
+  long randNumber = strtol(CUSTOM_UID, NULL, 16);
+#else
   randomSeed(analogRead(0));
   long randNumber = random(256, 4096);
+#endif
   EEPROM.put(address, randNumber);
   delay(100);
   EEPROM.get(address, serialNumber);

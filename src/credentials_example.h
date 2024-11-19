@@ -57,3 +57,4 @@
 
 // FORCE GENERATE UID
 // #define GEN_UID
+// #define CUSTOM_UID "cca"
