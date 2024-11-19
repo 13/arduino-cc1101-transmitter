@@ -42,7 +42,7 @@ VoltageReference vRef;
 boolean wakeup_state = false;
 
 #ifdef SENSOR_TYPE_button
-boolean buttonChanged = false;
+boolean buttonDetected = false;
 boolean buttonState = LOW;
 #endif
 
@@ -212,7 +212,7 @@ void wakeInterruptButton()
 {
   Serial.println(F("Wakeup interrupt button..."));
   buttonState = digitalRead(SENSOR_PIN_BUTTON);
-  buttonChanged = true;
+  buttonDetected = true;
 }
 #endif
 
@@ -272,27 +272,12 @@ String prepareMessage()
   msg += ",X:";
   msg += pid;
 
-  return msg;
-}
+#ifdef MQTT_RETAINED_DISABLED
+  msg += ",R:0";
+#endif
 
-#ifdef SENSOR_TYPE_button
-String handleSensorButton()
-{
-  String msg = "";
-  if (buttonDetected)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_button);
-    Serial.print(F(": "));
-    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
-#endif
-    msg += ",B1:";
-    msg += int(buttonState == HIGH ? 1 : 0);
-    buttonDetected = false;
-  }
   return msg;
 }
-#endif
 
 #ifdef SENSOR_TYPE_pir
 String handleSensorPir()
@@ -328,6 +313,25 @@ String handleSensorRadar()
     msg += ",M1:";
     msg += int(radarState == HIGH ? 1 : 0);
     motionDetected = false;
+  }
+  return msg;
+}
+#endif
+
+#ifdef SENSOR_TYPE_button
+String handleSensorButton()
+{
+  String msg = "";
+  if (buttonDetected)
+  {
+#ifdef VERBOSE
+    Serial.print(SENSOR_TYPE_button);
+    Serial.print(F(": "));
+    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
+#endif
+    msg += ",B1:";
+    msg += int(buttonState == HIGH ? 0 : 1); // REVERSE LOGIC
+    buttonDetected = false;
   }
   return msg;
 }
