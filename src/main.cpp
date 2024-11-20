@@ -264,6 +264,7 @@ void handleWakeup()
   if (wakeup_state)
   {
     Serial.println(F("Wakeup..."));
+    wakeup_state = false;
   }
   else
   {
@@ -341,10 +342,14 @@ String handleSensorButton()
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_button);
     Serial.print(F(": "));
-    Serial.println(buttonState == HIGH ? "HIGH" : "LOW");
+    Serial.println(buttonState == HIGH ? "LOW" : "HIGH"); // REVERSE LOGIC
 #endif
     msg += ",B1:";
-    msg += int(buttonState == HIGH ? 0 : 1); // REVERSE LOGIC
+    if (buttonDetected){
+      msg += "1";
+    } else {
+      msg += int(buttonState == HIGH ? 0 : 1); // REVERSE LOGIC
+    }
     buttonDetected = false;
   }
   return msg;
@@ -536,13 +541,14 @@ void transmitData(String *str, int strCount)
         str[i].toCharArray(charArr, str[i].length() + 1);
 
 #ifdef USE_CRYPTO
-        Serial.println(F("crypto: Encrypting.... OK"));
+        Serial.print(F("crypto: Encrypting... "));
         // Encrypt the byte array in blocks of 16 bytes
         int blockCount = str[i].length() / 16 + 1;
         for (int i = 0; i < blockCount; ++i)
         {
           aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
         }
+        Serial.println(F("OK"));
 #ifdef DEBUG
         Serial.print(F("crypto: "));
         for (int j = 0; j < sizeof(cipher); j++)
@@ -592,6 +598,18 @@ void transmitData(String *str, int strCount)
       // delay multi send
       if (strCount > 1)
       {
+#ifdef VERBOSE
+        Serial.print(F("Delay..."));
+        Serial.print(CC_DELAY);
+        Serial.println(F("ms"));
+#endif
+        delay(CC_DELAY);
+      } else {
+#ifdef VERBOSE
+        Serial.print(F("Delay..."));
+        Serial.print(CC_DELAY);
+        Serial.println(F("ms"));
+#endif
         delay(CC_DELAY);
       }
     }
@@ -737,8 +755,8 @@ void setup()
   pinMode(SENSOR_PIN_BUTTON, INPUT_PULLUP);
   Serial.print(SENSOR_TYPE_button);
   Serial.print(F(": "));
-  Serial.println(digitalRead(SENSOR_PIN_BUTTON) == HIGH ? "HIGH" : "LOW");
-  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_BUTTON), wakeInterruptButton, RISING);
+  Serial.println(digitalRead(SENSOR_PIN_BUTTON) == HIGH ? "LOW" : "HIGH"); // REVERSE LOGIC
+  attachInterrupt(digitalPinToInterrupt(SENSOR_PIN_BUTTON), wakeInterruptButton, FALLING);
 #endif
 
 // pir
