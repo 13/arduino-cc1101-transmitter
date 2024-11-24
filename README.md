@@ -73,16 +73,16 @@ T4 = bme680
 
 ### Hardware
 
-|ATmeg328|RFM95W|
-|---|---|
-|VCC|3V|
-|GND|GND|
-|11|SI|
-|13|SCLK|
-|12|S0|
-|-|GD1|
-|2|GD0|
-|10|CSN|
+| Arduino Pro Mini | RFM95W (SX1276) |
+|---| ---|
+| VCC | 3V |
+| GND | GND |
+| 11 | MOSI |
+| 12 | MISO |
+| 13 | SCK |
+| 10 | NSS |
+| 9 | RST |
+| 2 | DIO0 |
 
 ### Installation
 
