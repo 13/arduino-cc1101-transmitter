@@ -16,12 +16,12 @@
 
 // Deep sleep
 #define DS_L 36   // long [36] 60 
-#define DS_S 8 // short [8] 16
-#define DS_D 100 // delay before sleep 70 [100] 500
+#define DS_S 8    // short [8] 16
+#define DS_D 100  // delay before sleep 70 [100] 500
 
 // LoRa
-#define LO_FREQ 915E6
-#define LO_POWER 12
+#define LO_FREQ 868E6
+#define LO_POWER 17
 #define LO_DELAY 100 // [100]
 // Type
 #define SEND_CHAR

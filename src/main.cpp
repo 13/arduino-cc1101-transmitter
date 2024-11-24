@@ -682,8 +682,9 @@ void setup()
 #ifdef VERBOSE
     Serial.println(F("Detected"));
 #endif
+    // LoRa.setTxPower(LO_POWER);
     // LoRa.setSyncWord(0xF3);
-    // LoRa.onTxDone(onTxDone);
+    // LoRa.onTxDone(transmitDone);
   }
   else
   {
