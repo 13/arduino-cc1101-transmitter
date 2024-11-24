@@ -1,6 +1,6 @@
-# arduino-cc1101-transmitter
+# arduino-lora-transmitter
 
-An Arduino CC1101 transmitter
+An Arduino LoRa transmitter
 
 ## Contents
 
@@ -18,7 +18,7 @@ An Arduino CC1101 transmitter
 
 ## About
 
-The arduino-cc1101-transmitter emits a 61 characters string with an unique id.
+The arduino-lora-transmitter emits a 61 characters string with an unique id.
 
 ```
 Z:60,N:87,T1:29,H1:817,T2:25,T3:42,P1:9260,A1:753,V1:38
@@ -39,12 +39,11 @@ S = switch
 B = button
 
 , = delimiter
-! = packet end
 
-X1 = si7021
-X2 = ds18b20
-X3 = bmp280
-X4 = bme680
+T1 = si7021
+T2 = ds18b20
+T3 = bmp280
+T4 = bme680
 ```
 
 ### Supported sensors 
@@ -54,26 +53,27 @@ X4 = bme680
 * BMP280 (Temperature, pressure & altitude)
 * BME680 (Temperature, humidity, pressure, altitude & gas)
 * PIR (Motion)
-* SWITCH (Button, reed & switch)
+* SWITCH (reed & switch)
+* BUTTON 
 
 ### Built With
 
 * [VSCode](https://github.com/microsoft/vscode)
 * [PlatformIO](https://platformio.org/)
-* [SmartRC-CC1101-Driver-Lib](https://github.com/LSatan/SmartRC-CC1101-Driver-Lib/)
+* [arduino-LoRa](https://github.com/sandeepmistry/arduino-LoRa)
 
 ## Getting Started
 
 ### Prerequisites
 
-* An Arduino with a CC1101 module as a receiver
-* An Arduino with a CC1101 module as a transmitter
+* An Arduino with a RFM95W/SX1276 module as a receiver
+* An Arduino with a RFM95W/SX1276 module as a transmitter
 * VSCode
 * PlatformIO
 
 ### Hardware
 
-|ATmeg328|CC1101|
+|ATmeg328|RFM95W|
 |---|---|
 |VCC|3V|
 |GND|GND|
@@ -87,7 +87,7 @@ X4 = bme680
 ### Installation
 
 ```sh
-git clone https://github.com/13/arduino-cc1101-transmitter.git
+git clone https://github.com/13/arduino-lora-transmitter.git
 ```
 
 ## Usage

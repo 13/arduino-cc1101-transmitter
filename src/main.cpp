@@ -1,8 +1,9 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include <SPI.h>
+#include <LoRa.h>
 #include <LowPower.h>
 #include <VoltageReference.h>
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <version.h>
 #include <credentials.h>
 #ifdef USE_CRYPTO
@@ -34,8 +35,8 @@ Adafruit_BMP280 bmp280;
 Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
-// cc1101
-boolean cc1101_state = true;
+// LoRa
+boolean lo_state = true;
 // voltage
 VoltageReference vRef;
 // wakeup
@@ -202,7 +203,8 @@ void sleepDeep(uint8_t t)
     Serial.print(t);
     Serial.println(F("s..."));
   }
-  ELECHOUSE_cc1101.goSleep();
+  // LoRa sleep
+  LoRa.sleep();
   delay(DS_D);
   if (t > 0)
   {
@@ -493,7 +495,7 @@ String handleVcc()
 
 void transmitData(String *str, int strCount)
 {
-  if (cc1101_state)
+  if (lo_state)
   {
     for (uint8_t i = 0; i < strCount; i++)
     {
@@ -522,17 +524,14 @@ void transmitData(String *str, int strCount)
 
 #ifdef VERBOSE
 #ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... "));
+        Serial.println(F("LoRa: Transmitting packet... "));
 #else
-        Serial.print(F("cc1101: Transmitting packet... "));
+        Serial.print(F("LoRa: Transmitting packet... "));
 #endif
 #endif
-
-#ifdef GD0
-        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]));
-#else
-        ELECHOUSE_cc1101.SendData(byteArr, sizeof(byteArr) / sizeof(byteArr[0]), CC_DELAY);
-#endif
+        LoRa.beginPacket();
+        LoRa.print(byteArr);
+        LoRa.endPacket(true)
 #endif
 
 #ifdef SEND_CHAR
@@ -559,29 +558,27 @@ void transmitData(String *str, int strCount)
 #endif
 #endif
 
+        // Send packet
 #ifdef VERBOSE
 #ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... "));
+        Serial.println(F("LoRa: Transmitting packet... "));
 #else
-        Serial.print(F("cc1101: Transmitting packet... "));
+        Serial.print(F("LoRa: Transmitting packet... "));
 #endif
 #endif
-
-#ifdef GD0
+        LoRa.beginPacket();
 #ifdef USE_CRYPTO
-        ELECHOUSE_cc1101.SendData(cipher);
+        LoRa.print((const char*)cipher);
 #else
-        ELECHOUSE_cc1101.SendData(charArr);
+        LoRa.print(charArr);
 #endif
 #else
-        ELECHOUSE_cc1101.SendData(charArr, CC_DELAY);
-
-#endif
+        LoRa.endPacket(true)
 #endif
 
 #ifdef VERBOSE
 #ifdef DEBUG
-        Serial.println(F("cc1101: Transmitting packet... OK"));
+        Serial.println(F("LoRa: Transmitting packet... OK"));
         Serial.print(F("> Packet Length: "));
 #ifdef SEND_CHAR
         Serial.println(strlen(charArr));
@@ -600,23 +597,23 @@ void transmitData(String *str, int strCount)
       {
 #ifdef VERBOSE
         Serial.print(F("Delay..."));
-        Serial.print(CC_DELAY);
+        Serial.print(LO_DELAY);
         Serial.println(F("ms"));
 #endif
-        delay(CC_DELAY);
+        delay(LO_DELAY);
       } else {
 #ifdef VERBOSE
         Serial.print(F("Delay..."));
-        Serial.print(CC_DELAY);
+        Serial.print(LO_DELAY);
         Serial.println(F("ms"));
 #endif
-        delay(CC_DELAY);
+        delay(LO_DELAY);
       }
     }
   }
   else
   {
-    Serial.println(F("cc1101: Not transmitting"));
+    Serial.println(F("LoRa: Not transmitting"));
   }
 }
 
@@ -675,36 +672,25 @@ void setup()
   Serial.print(F("> Node: "));
   Serial.println(String(getUniqueID(), HEX));
 
-  // Start CC1101
+  // Start LoRa
 #ifdef VERBOSE
-  Serial.print(F("cc1101: "));
+  Serial.print(F("LoRa: "));
 #endif
-  int cc_state = ELECHOUSE_cc1101.getCC1101();
-  if (cc_state)
+  int lo_state = LoRa.begin(LO_FREQ);
+  if (lo_state)
   {
 #ifdef VERBOSE
     Serial.println(F("Detected"));
 #endif
-    ELECHOUSE_cc1101.Init(); // must be set to initialize the cc1101!
-#ifdef GD0
-    ELECHOUSE_cc1101.setGDO0(GD0);
-#endif
-    ELECHOUSE_cc1101.setCCMode(1);
-    ELECHOUSE_cc1101.setModulation(0);
-    ELECHOUSE_cc1101.setMHZ(CC_FREQ);
-    ELECHOUSE_cc1101.setPA(CC_POWER);
-    ELECHOUSE_cc1101.setSyncMode(2);
-    ELECHOUSE_cc1101.setCrc(1);
-    ELECHOUSE_cc1101.setCRC_AF(1);
-    // ELECHOUSE_cc1101.setAdrChk(1);
-    // ELECHOUSE_cc1101.setAddr(0);
+    // LoRa.setSyncWord(0xF3);
+    // LoRa.onTxDone(onTxDone);
   }
   else
   {
 #ifdef VERBOSE
     Serial.print(F("Not detected "));
-    Serial.println(cc_state);
-    cc1101_state = false;
+    Serial.println(lo_state);
+    lo_state = false;
 #endif
     // sleepDeep(DS_S);
   }

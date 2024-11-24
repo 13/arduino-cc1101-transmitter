@@ -19,11 +19,10 @@
 #define DS_S 8 // short [8] 16
 #define DS_D 100 // delay before sleep 70 [100] 500
 
-// CC1101
-#define GD0 2
-#define CC_FREQ 868.32
-#define CC_POWER 12
-#define CC_DELAY 100 // [100]
+// LoRa
+#define LO_FREQ 915E6
+#define LO_POWER 12
+#define LO_DELAY 100 // [100]
 // Type
 #define SEND_CHAR
 //#define SEND_BYTE
