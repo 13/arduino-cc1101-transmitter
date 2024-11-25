@@ -501,13 +501,6 @@ void transmitData(String *str, int strCount)
     {
       if (str[i].length() != 0)
       {
-#ifdef FILL_STRING
-        // Fill to String length 57, thus total is 61
-        for (uint8_t j = str[i].length(); j < 56; j++)
-        {
-          str[i] += ".";
-        }
-#endif
         // Add leadingTuple 'Z:' with length of String
         str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
 
@@ -554,9 +547,7 @@ void transmitData(String *str, int strCount)
         LoRa.print((const char*)cipher);
 #else
         LoRa.print(charArr);
-#endif
-#else
-        LoRa.endPacket(true)
+#endif      
 #endif
 
 #ifdef VERBOSE
@@ -567,6 +558,7 @@ void transmitData(String *str, int strCount)
         Serial.println(strlen(charArr));
 #endif
 #else
+        LoRa.endPacket();
         Serial.println(F("OK"));
 #endif
 #endif
@@ -629,9 +621,6 @@ void setup()
   Serial.print(F("VERBOSE "));
 #ifdef GD0
   Serial.print(F("GD0 "));
-#endif
-#ifdef SEND_CHAR
-  Serial.print(F("CHAR "));
 #endif
 #ifdef USE_CRYPTO
   Serial.print(F("CRYPTO "));
