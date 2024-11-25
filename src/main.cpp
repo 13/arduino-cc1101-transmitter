@@ -515,25 +515,8 @@ void transmitData(String *str, int strCount)
         Serial.print(F("> DEBUG: "));
         Serial.println(str[i]);
 #endif
-// Transmission logic
-#ifdef SEND_BYTE
-        // Transmit byte format
-        byte byteArr[str[i].length() + 1];
-        str[i].getBytes(byteArr, str[i].length() + 1);
-        byteArr[sizeof(byteArr) / sizeof(byteArr[0]) - 1] = '.'; // overwrite null byte terminator
 
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("LoRa: Transmitting packet... "));
-#else
-        Serial.print(F("LoRa: Transmitting packet... "));
-#endif
-#endif
-        LoRa.beginPacket();
-        LoRa.print(byteArr);
-        LoRa.endPacket(true)
-#endif
-
+        // Transmission logic
 #ifdef SEND_CHAR
         // Transmit char format
         char charArr[str[i].length() + 1];
@@ -582,9 +565,6 @@ void transmitData(String *str, int strCount)
         Serial.print(F("> Packet Length: "));
 #ifdef SEND_CHAR
         Serial.println(strlen(charArr));
-#endif
-#ifdef SEND_BYTE
-        Serial.println(sizeof(byteArr) / sizeof(byteArr[0]));
 #endif
 #else
         Serial.println(F("OK"));
@@ -652,9 +632,6 @@ void setup()
 #endif
 #ifdef SEND_CHAR
   Serial.print(F("CHAR "));
-#endif
-#ifdef SEND_BYTE
-  Serial.print(F("BYTE "));
 #endif
 #ifdef USE_CRYPTO
   Serial.print(F("CRYPTO "));

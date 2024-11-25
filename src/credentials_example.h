@@ -25,7 +25,6 @@
 #define LO_DELAY 100 // [100]
 // Type
 #define SEND_CHAR
-//#define SEND_BYTE
 
 // Crypto
 // openssl rand -hex 16
