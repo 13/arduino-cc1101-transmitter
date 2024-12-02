@@ -37,6 +37,8 @@ Adafruit_BME680 bme680 = Adafruit_BME680();
 
 // LoRa
 boolean lo_state = true;
+const byte senderAddress = 0x14;
+const byte receiverAddress = 0x15;
 // voltage
 VoltageReference vRef;
 // wakeup
@@ -546,7 +548,11 @@ void transmitData(String *str, int strCount)
 #ifdef USE_CRYPTO
         LoRa.print((const char*)cipher);
 #else
-        LoRa.print(charArr);
+        LoRa.write(receiverAddress);
+        LoRa.write(senderAddress);
+        LoRa.print(str[i].length());
+        LoRa.print(str[i]);
+        // LoRa.print(charArr);
 #endif      
 #endif
 
@@ -649,8 +655,10 @@ void setup()
     Serial.println(F("Detected"));
 #endif
     // LoRa.setTxPower(LO_POWER);
-    // LoRa.setSyncWord(0xF3);
     // LoRa.onTxDone(transmitDone);
+    LoRa.setSpreadingFactor(10);
+    LoRa.setSyncWord(0x13);
+    LoRa.enableCrc();
   }
   else
   {
