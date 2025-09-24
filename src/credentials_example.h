@@ -1,12 +1,12 @@
 // Disable/enable sensors
-// #define SENSOR_TYPE_si7021   "si7021"
-// #define SENSOR_TYPE_ds18b20  "ds18b20"
-// #define SENSOR_TYPE_bmp280   "bmp280"
-// #define SENSOR_TYPE_bme680   "bme680"
-// #define SENSOR_TYPE_pir      "pir"
-// #define SENSOR_TYPE_radar    "radar"
-// #define SENSOR_TYPE_switch   "switch"
-#define SENSOR_TYPE_button      "button"
+// #define SENSOR_TYPE_si7021   "SI7021"
+// #define SENSOR_TYPE_ds18b20  "DS18B20"
+// #define SENSOR_TYPE_bmp280   "BMP280"
+// #define SENSOR_TYPE_bme680   "BME680"
+// #define SENSOR_TYPE_pir      "PIR"
+// #define SENSOR_TYPE_radar    "RADAR"
+// #define SENSOR_TYPE_switch   "SWITCH"
+#define SENSOR_TYPE_button      "BUTTON"
 
 // OUTPUT
 #define VERBOSE // Always enabled
@@ -28,7 +28,8 @@
 
 // Crypto
 // openssl rand -hex 16
-#define USE_CRYPTO
+//#define USE_CRYPTO
+
 #ifdef USE_CRYPTO
 #define AES_KEY "808639b9d210f261fefcce5a85c0cadb"
 #endif

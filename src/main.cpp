@@ -36,7 +36,7 @@ Adafruit_BME680 bme680 = Adafruit_BME680();
 #endif
 
 // LoRa
-boolean lo_state = true;
+boolean lora_status = true;
 const byte senderAddress = 0x14;
 const byte receiverAddress = 0x15;
 // voltage
@@ -276,323 +276,302 @@ void handleWakeup()
   }
 }
 
-String prepareMessage()
+// -----------------------
+// TLV packet builder API
+// -----------------------
+enum TLVType : uint8_t {
+  TLV_UID     = 0x01,
+  TLV_PID     = 0x02,
+  TLV_VER     = 0x03,
+  TLV_COUNTER = 0x04,
+  TLV_VCC     = 0x05, // uint16, mV
+  // button
+  TLV_BUTTON  = 0x06,
+  TLV_SWITCH  = 0x07,
+  TLV_PIR     = 0x08,
+  TLV_RADAR   = 0x09,
+  // radar
+  // ds18b20
+  TLV_T_DS    = 0x10,
+  // si7021
+  TLV_T_SI    = 0x11,
+  TLV_H_SI    = 0x12,
+  // bmp280/bme680
+  TLV_T_BM    = 0x13, // int16, °C * 10
+  TLV_H_BM    = 0x14, // int16, % * 10
+  TLV_P_BM    = 0x15, // uint32, Pa/10
+  TLV_G_BM    = 0x16  // uint16, kOhm
+};
+
+// payload constraints
+const uint8_t MAX_PAYLOAD = 61; // original used 61
+const uint8_t TLV_LEADING_LEN = 1; // we put 1 byte leading length
+const uint8_t MAX_TLV_PAYLOAD = MAX_PAYLOAD - TLV_LEADING_LEN; // 60
+
+uint8_t txPlain[MAX_PAYLOAD]; // [0] will hold payload length, TLVs start at 1
+uint8_t txTLVLen = 0; // number of bytes used by TLVs (excluding leading length)
+
+// Reset the packet (clear TLVs)
+void resetPacket()
 {
-  String msg = ",N:";
-  msg += String(getUniqueID(), HEX);
-
-#ifdef VERBOSE_PC
-  msg += ",C:";
-  msg += msgCounter;
-#endif
-
-  // Random packet id
-  pid = random(99) + 1;
-  msg += ",X:";
-  msg += pid;
-
-#ifdef MQTT_RETAINED_DISABLED
-  msg += ",R:0";
-#endif
-
-  return msg;
+  memset(txPlain, 0, sizeof(txPlain));
+  txTLVLen = 0;
 }
 
-#ifdef SENSOR_TYPE_pir
-String handleSensorPir()
+// Add generic TLV
+bool addTLV(uint8_t type, const void* data, uint8_t length)
 {
-  String msg = "";
+  if (length == 0) return false;
+  if (txTLVLen + 2 + length > MAX_TLV_PAYLOAD)
+  {
+#ifdef VERBOSE
+    Serial.print(F("TLV: Not enough space for TLV type "));
+    Serial.println(type, HEX);
+#endif
+    return false;
+  }
+  uint8_t idx = 1 + txTLVLen; // start after leading length byte
+  txPlain[idx++] = type;
+  txPlain[idx++] = length;
+  memcpy(&txPlain[idx], data, length);
+  txTLVLen += 2 + length;
+  return true;
+}
+
+// Convenience helpers
+bool addTLV_u8(uint8_t type, uint8_t v) { return addTLV(type, &v, 1); }
+bool addTLV_u16(uint8_t type, uint16_t v) { return addTLV(type, &v, 2); }
+bool addTLV_i16(uint8_t type, int16_t v) { return addTLV(type, &v, 2); }
+bool addTLV_u32(uint8_t type, uint32_t v) { return addTLV(type, &v, 4); }
+
+#ifdef SENSOR_TYPE_button
+void handleSensorButton()
+{
+  if (buttonDetected)
+  {
+    uint8_t state = buttonDetected ? 1 : (buttonState == HIGH ? 0 : 1); // keep original reverse logic
+    addTLV_u8(TLV_BUTTON, state);
+    buttonDetected = false;
+#ifdef VERBOSE
+    Serial.print(F("TLV: Button state "));
+    Serial.println(state);
+#endif
+  }
+}
+#endif
+
+#ifdef SENSOR_TYPE_switch  
+void handleSensorSwitch() {
+  if (switchChanged) {
+    uint8_t state = (switchState == HIGH) ? 1 : 0;
+    addTLV_u8(TLV_SWITCH, state); 
+    switchChanged = false;
+  }
+}
+#endif
+
+#ifdef SENSOR_TYPE_pir
+void handleSensorPir()
+{
   if (motionDetected)
   {
+    uint8_t state = (pirState == HIGH) ? 1 : 0;
+    addTLV_u8(TLV_PIR, state);
+    motionDetected = false;
 #ifdef VERBOSE
     Serial.print(SENSOR_TYPE_pir);
     Serial.print(F(": "));
-    Serial.println(pirState == HIGH ? "HIGH" : "LOW");
+    Serial.println(state);
 #endif
-    msg += ",M1:";
-    msg += int(pirState == HIGH ? 1 : 0);
-    motionDetected = false;
   }
-  return msg;
 }
 #endif
 
 #ifdef SENSOR_TYPE_radar
-String handleSensorRadar()
-{
-  String msg = "";
-  // motionDetected = true;
-  if (motionDetected)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_radar);
-    Serial.print(F(": "));
-    Serial.println(radarState == HIGH ? "HIGH" : "LOW");
-#endif
-    msg += ",M1:";
-    msg += int(radarState == HIGH ? 1 : 0);
+void handleSensorRadar() {
+  if (motionDetected) {
+    uint8_t state = (radarState == HIGH) ? 1 : 0;
+    addTLV_u8(TLV_RADAR, state); // Need to define TLV_RADAR
     motionDetected = false;
   }
-  return msg;
-}
-#endif
-
-#ifdef SENSOR_TYPE_button
-String handleSensorButton()
-{
-  String msg = "";
-  if (buttonDetected)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_button);
-    Serial.print(F(": "));
-    Serial.println(buttonState == HIGH ? "LOW" : "HIGH"); // REVERSE LOGIC
-#endif
-    msg += ",B1:";
-    if (buttonDetected){
-      msg += "1";
-    } else {
-      msg += int(buttonState == HIGH ? 0 : 1); // REVERSE LOGIC
-    }
-    buttonDetected = false;
-  }
-  return msg;
-}
-#endif
-
-#ifdef SENSOR_TYPE_switch
-String handleSensorSwitch()
-{
-  String msg = "";
-  if (switchChanged)
-  {
-#ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_switch);
-    Serial.print(F(": "));
-    Serial.println(switchState == HIGH ? "HIGH" : "LOW");
-#endif
-    msg += ",S1:";
-    msg += int(switchState == HIGH ? 0 : 1); // REVERSE LOGIC
-    switchChanged = false;
-  }
-  return msg;
 }
 #endif
 
 #ifdef SENSOR_TYPE_si7021
-String handleSensorSi7021()
+void handleSensorSi7021()
 {
-  String msg = "";
   float si_temperature = si.readTemperature();
   float si_humidity = si.readHumidity();
   if (!isnan(si_temperature))
   {
+    int16_t t = (int16_t)round(si_temperature * 10.0);
+    int16_t h = (int16_t)round(si_humidity * 10.0);
+    addTLV_i16(TLV_T_SI, t);
+    addTLV_i16(TLV_H_SI, h);
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_si7021);
-    Serial.print(F(": "));
-    Serial.print(si_temperature);
-    Serial.print(F("C, "));
-    Serial.print(si_humidity);
-    Serial.println(F("%"));
+    Serial.print(F("Si7021: T="));
+    Serial.print(t / 10.0);
+    Serial.print(F(" H="));
+    Serial.println(h / 10.0);
 #endif
-    msg += ",T1:" + String(int(round(si_temperature * 10)));
-    msg += ",H1:" + String(int(round(si_humidity * 10)));
   }
-  return msg;
 }
 #endif
 
 #ifdef SENSOR_TYPE_ds18b20
-String handleSensorDs18b20()
+void handleSensorDs18b20()
 {
-  String msg = "";
   ds18b20.requestTemperatures();
   float ds_temperature = ds18b20.getTempCByIndex(0);
   if (ds_temperature != DEVICE_DISCONNECTED_C)
   {
+    int16_t t = (int16_t)round(ds_temperature * 10.0);
+    addTLV_i16(TLV_T_DS, t);
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_ds18b20);
-    Serial.print(F(": "));
-    Serial.println(ds_temperature);
+    Serial.print(F("DS18B20 T="));
+    Serial.println(t / 10.0);
 #endif
-    msg += ",T2:" + String(int(round(ds_temperature * 10)));
   }
-  return msg;
 }
 #endif
 
 #ifdef SENSOR_TYPE_bmp280
-String handleSensorBmp280()
+void handleSensorBmp280()
 {
-  String msg = "";
-  float bmp280_temperature = bmp280.readTemperature();
-  float bmp280_pressure = bmp280.readPressure();
-  if (!isnan(bmp280_pressure) && bmp280_pressure > 0)
+  float bmp_temperature = bmp280.readTemperature();
+  float bmp_pressure = bmp280.readPressure(); // Pa
+  if (!isnan(bmp_pressure) && bmp_pressure > 0)
   {
+    int16_t t = (int16_t)round(bmp_temperature * 10.0);
+    uint32_t p_div10 = (uint32_t)round(bmp_pressure / 10.0); // Pa/10
+    addTLV_i16(TLV_T_BM, t);
+    addTLV_u32(TLV_P_BM, p_div10);
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_bmp280);
-    Serial.print(F(": "));
-    Serial.print(bmp280_temperature);
-    Serial.print(F("C, "));
-    Serial.print(bmp280_pressure);
-    Serial.println(F("Pa"));
+    Serial.print(F("TLV: BMP280 T="));
+    Serial.print(t / 10.0);
+    Serial.print(F(" P="));
+    Serial.println(p_div10);
 #endif
-    msg += ",T3:" + String(int(round(bmp280_temperature * 10)));
-    msg += ",P3:" + String(int(round(bmp280_pressure) / 10));
   }
-  return msg;
 }
 #endif
 
 #ifdef SENSOR_TYPE_bme680
-String handleSensorBme680()
+void handleSensorBme680()
 {
-  String msg = "";
   if (!bme680.performReading())
   {
 #ifdef VERBOSE
     Serial.println(F("[BME680]: ERROR read!"));
 #endif
     sleepDeep(255);
+    return;
   }
+  float bme_temperature = bme680.temperature;
+  float bme_humidity = bme680.humidity;
+  float bme_pressure = bme680.pressure / 100.0; // hPa
+  float bme_gas = bme680.gas_resistance / 1000.0; // kOhm
 
-  float bme680_temperature = bme680.temperature;
-  float bme680_humidity = bme680.humidity;
-  float bme680_pressure = bme680.pressure / 100.0;
-  float bme680_gas = bme680.gas_resistance / 1000.0;
-
-  if (!isnan(bme680_temperature))
+  if (!isnan(bme_temperature))
   {
+    int16_t t = (int16_t)round(bme_temperature * 10.0);
+    int16_t h = (int16_t)round(bme_humidity * 10.0);
+    uint32_t p10 = (uint32_t)round((bme680.pressure) / 10.0); // Pa/10
+    int16_t q = (int16_t)round(bme_gas);
+    addTLV_i16(TLV_T_BM, t);
+    addTLV_i16(TLV_H_BM, h);
+    addTLV_u32(TLV_P_BM, p10);
+    addTLV_u16(TLV_G_BM, (uint16_t)q);
 #ifdef VERBOSE
-    Serial.print(SENSOR_TYPE_bme680);
-    Serial.print(F(": "));
-    Serial.print(bme680_temperature);
-    Serial.print(F("C, "));
-    Serial.print(bme680_humidity);
-    Serial.print(F("%, "));
-    Serial.print(bme680_pressure);
-    Serial.print(F("hPa, "));
-    Serial.print(bme680_gas);
-    Serial.println(F("KOhms"));
+    Serial.print(F("TLV: BME680 T="));
+    Serial.print(t / 10.0);
+    Serial.print(F(" H="));
+    Serial.print(h / 10.0);
+    Serial.print(F(" P="));
+    Serial.print(p10);
+    Serial.print(F(" Q="));
+    Serial.println(q);
 #endif
-    msg += ",T4:" + String(int(round(bme680_temperature * 10)));
-    msg += ",H4:" + String(int(round(bme680_humidity * 10)));
-    msg += ",P4:" + String(int(round(bme680_pressure * 10)));
-    msg += ",Q4:" + String(int(round(bme680_gas)));
   }
-  return msg;
 }
 #endif
 
-String handleVcc()
+void handleVcc()
 {
-  float vcc = vRef.readVcc() / 1000.0;
+  float vccf = vRef.readVcc() / 1000.0;
+  uint8_t v = (uint8_t)round(vccf * 10);
+  addTLV_u16(TLV_VCC, v);
 #ifdef VERBOSE
   Serial.print(F("VCC: "));
-  Serial.println(vcc);
+  Serial.print(v / 10.0, 1);
+  Serial.println(F("V"));
 #endif
-  String msg = ",V1:" + String(int(vcc)) + String((int)(vcc * 10) % 10);
-  return msg;
 }
 
-void transmitData(String *str, int strCount)
+void transmitPacket()
 {
-  if (lo_state)
-  {
-    for (uint8_t i = 0; i < strCount; i++)
-    {
-      if (str[i].length() != 0)
-      {
-        // Add leadingTuple 'Z:' with length of String
-        str[i] = "Z:" + String(str[i].length() + String(str[i].length()).length() + 2) + str[i];
-
-#ifdef DEBUG
-        Serial.print(F("> DEBUG: "));
-        Serial.println(str[i]);
+  if (!lora_status || txTLVLen == 0) {
+#ifdef VERBOSE
+    if (!lora_status) Serial.println(F("LoRa: Not initialized"));
+    if (txTLVLen == 0) Serial.println(F("LoRa: No data to send"));
 #endif
+    return;
+  }
 
-        // Transmission logic
-#ifdef SEND_CHAR
-        // Transmit char format
-        char charArr[str[i].length() + 1];
-        str[i].toCharArray(charArr, str[i].length() + 1);
+  // Put leading length byte (number of TLV payload bytes)
+  txPlain[0] = txTLVLen;
+  uint16_t plainLen = txTLVLen + 1; // include length byte
+                                    
+  LoRa.beginPacket();
+  LoRa.write(receiverAddress);
+  LoRa.write(senderAddress);
 
 #ifdef USE_CRYPTO
-        Serial.print(F("crypto: Encrypting... "));
-        // Encrypt the byte array in blocks of 16 bytes
-        int blockCount = str[i].length() / 16 + 1;
-        for (int i = 0; i < blockCount; ++i)
-        {
-          aes128.encryptBlock(&cipher[i * 16], &charArr[i * 16]);
-        }
-        Serial.println(F("OK"));
-#ifdef DEBUG
-        Serial.print(F("crypto: "));
-        for (int j = 0; j < sizeof(cipher); j++)
-        {
-          Serial.write(cipher[j]);
-        }
-        Serial.println();
-#endif
-#endif
+  // Pad to 16 byte blocks with zero padding
+  uint8_t blocks = (plainLen + 15) / 16;
+  uint16_t cipherLen = blocks * 16;
+  memset(cipher, 0, cipherLen);
 
-        // Send packet
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("LoRa: Transmitting packet... "));
-#else
-        Serial.print(F("LoRa: Transmitting packet... "));
-#endif
-#endif
-        LoRa.beginPacket();
-#ifdef USE_CRYPTO
-        LoRa.print((const char*)cipher);
-#else
-        LoRa.write(receiverAddress);
-        LoRa.write(senderAddress);
-        LoRa.print(str[i].length());
-        LoRa.print(str[i]);
-        // LoRa.print(charArr);
-#endif      
-#endif
-
-#ifdef VERBOSE
-#ifdef DEBUG
-        Serial.println(F("LoRa: Transmitting packet... OK"));
-        Serial.print(F("> Packet Length: "));
-#ifdef SEND_CHAR
-        Serial.println(strlen(charArr));
-#endif
-#else
-        LoRa.endPacket();
-        Serial.println(F("OK"));
-#endif
-#endif
-        Serial.println(str[i]);
-      }
-      // delay multi send
-      if (strCount > 1)
-      {
-#ifdef VERBOSE
-        Serial.print(F("Delay..."));
-        Serial.print(LO_DELAY);
-        Serial.println(F("ms"));
-#endif
-        delay(LO_DELAY);
-      } else {
-#ifdef VERBOSE
-        Serial.print(F("Delay..."));
-        Serial.print(LO_DELAY);
-        Serial.println(F("ms"));
-#endif
-        delay(LO_DELAY);
-      }
-    }
-  }
-  else
+  for (uint8_t b = 0; b < blocks; ++b)
   {
-    Serial.println(F("LoRa: Not transmitting"));
+    // encryptBlock(output, input)
+    aes128.encryptBlock(&cipher[b * 16], &txPlain[b * 16]);
   }
+  LoRa.print((const char*)cipher);
+
+#ifdef VERBOSE
+  Serial.println(F("LoRa: Transmitting AES packet... OK"));
+  Serial.print(F("> Packet Length: "));
+  Serial.print(cipherLen);
+  Serial.println(F(" bytes"));
+#endif
+
+#else // no crypto
+#ifdef VERBOSE
+  Serial.println(F("LoRa: Transmitting packet... OK"));
+  Serial.print(F("> Packet Length: "));
+  Serial.print(plainLen);
+  Serial.println(F(" bytes"));
+  Serial.print(F("> Packet: "));
+  Serial.println((const char*)txPlain);
+#endif
+
+  LoRa.print((const char*)txPlain);
+
+#endif // USE_CRYPTO
+  LoRa.endPacket();
+
+#ifdef VERBOSE
+  // Print TLV summary for debugging
+  Serial.print(F("> TLV bytes: "));
+  Serial.println(txTLVLen);
+  Serial.print(F("> Packet length (sent): "));
+#ifdef USE_CRYPTO
+  Serial.println((int)((plainLen + 15) / 16 * 16));
+#else
+  Serial.println(plainLen);
+#endif
+#endif
 }
 
 void sleepDevice()
@@ -609,6 +588,10 @@ void sleepDevice()
   sleepDeep(DS_L);
 #endif
 }
+
+// -----------------------
+// Setup & Loop
+// -----------------------
 
 void setup()
 {
@@ -628,6 +611,9 @@ void setup()
 #ifdef GD0
   Serial.print(F("GD0 "));
 #endif
+#ifdef SEND_BYTE
+  Serial.print(F("BYTE "));
+#endif
 #ifdef USE_CRYPTO
   Serial.print(F("CRYPTO "));
 #endif
@@ -646,13 +632,13 @@ void setup()
 
   // Start LoRa
 #ifdef VERBOSE
-  Serial.print(F("LoRa: "));
+  Serial.print(F("> LoRa: "));
 #endif
-  int lo_state = LoRa.begin(LO_FREQ);
-  if (lo_state)
+  int lora_status = LoRa.begin(LO_FREQ);
+  if (lora_status)
   {
 #ifdef VERBOSE
-    Serial.println(F("Detected"));
+    Serial.println(F("Initialized"));
 #endif
     // LoRa.setTxPower(LO_POWER);
     // LoRa.onTxDone(transmitDone);
@@ -664,8 +650,8 @@ void setup()
   {
 #ifdef VERBOSE
     Serial.print(F("Not detected "));
-    Serial.println(lo_state);
-    lo_state = false;
+    Serial.println(lora_status);
+    lora_status= false;
 #endif
     // sleepDeep(DS_S);
   }
@@ -755,73 +741,47 @@ void loop()
 {
   handleWakeup();
 
-  // Prepare message string
-  String str[3];
-  str[0] = prepareMessage();
+  // Build TLV packet
+  resetPacket();
+
+  // Core identifying TLVs
+  uint16_t uid = (uint16_t)getUniqueID();
+  addTLV_u16(TLV_UID, uid);
+
+#ifdef VERBOSE_PC
+  addTLV_u16(TLV_COUNTER, msgCounter++);
+#endif
+
+  pid = random(99) + 1;
+  addTLV_u8(TLV_PID, (uint8_t)pid);
 
   // Append sensor readings
 #ifdef SENSOR_TYPE_button
-  str[0] += handleSensorButton();
+  handleSensorButton();
 #endif
 #ifdef SENSOR_TYPE_pir
-  str[0] += handleSensorPir();
+  handleSensorPir();
 #endif
 #ifdef SENSOR_TYPE_radar
-  str[0] += handleSensorRadar();
+  handleSensorRadar();
 #endif
 #ifdef SENSOR_TYPE_switch
-  str[0] += handleSensorSwitch();
+  handleSensorSwitch();
 #endif
 #ifdef SENSOR_TYPE_si7021
-  str[0] += handleSensorSi7021();
+  handleSensorSi7021();
 #endif
 #ifdef SENSOR_TYPE_ds18b20
-  str[0] += handleSensorDs18b20();
+  handleSensorDs18b20();
 #endif
 #ifdef SENSOR_TYPE_bmp280
-  str[0] += handleSensorBmp280();
+  handleSensorBmp280();
 #endif
 #ifdef SENSOR_TYPE_bme680
-  str[0] += handleSensorBme680();
+  handleSensorBme680();
 #endif
+  handleVcc();
 
-  // Append voltage reading
-  str[0] += handleVcc();
-
-  // Transmission handling
-  // Split packets
-  // maxPacketSize (61) - leadingTupleLength ('Z:44')
-  // 61 - 4 = [57]
-  // With Termination char ";"
-  // 61 - 5 = [56]
-  int strCount = 1;
-  if (str[0].length() > 57)
-  {
-    // Handle message splitting if too long
-    strCount = 3;
-    // Message splitting logic here...
-    // str[1] and str[2] splitting as in the original code
-#ifdef VERBOSE
-    Serial.print(F("> String too long: "));
-    Serial.println(str[0].length());
-    Serial.print(F("> String diff: "));
-    Serial.println(57 - str[0].length());
-    Serial.print(F("> String: "));
-    Serial.println(str[0]);
-#endif
-    int str_middle = str[0].indexOf(",", str_middle + str[0].length() / 2);
-    str[1] = str[0].substring(0, str_middle);
-    // Increase the packet counter in the splitted second part
-#ifdef VERBOSE_PC
-    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",", str[0].indexOf(",") + 1) + 1)) +
-             ',' + str[0].substring(str_middle + 1);
-#else
-    str[2] = str[0].substring(0, str[0].indexOf(",", str[0].indexOf(",") + 1)) +
-             ',' + str[0].substring(str_middle + 1);
-#endif
-    str[0] = "";    
-  }
-
-  transmitData(str, strCount);
+  transmitPacket();
   sleepDevice();
 }
