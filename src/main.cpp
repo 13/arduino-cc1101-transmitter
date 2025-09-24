@@ -284,7 +284,7 @@ enum TLVType : uint8_t {
   TLV_PID     = 0x02,
   TLV_VER     = 0x03,
   TLV_COUNTER = 0x04,
-  TLV_VCC     = 0x05, // uint16, mV
+  TLV_VCC     = 0x05, // uint8, V
   // button
   TLV_BUTTON  = 0x06,
   TLV_SWITCH  = 0x07,
@@ -500,7 +500,7 @@ void handleVcc()
 {
   float vccf = vRef.readVcc() / 1000.0;
   uint8_t v = (uint8_t)round(vccf * 10);
-  addTLV_u16(TLV_VCC, v);
+  addTLV_u8(TLV_VCC, v);
 #ifdef VERBOSE
   Serial.print(F("VCC: "));
   Serial.print(v / 10.0, 1);
@@ -521,53 +521,80 @@ void transmitPacket()
   // Put leading length byte (number of TLV payload bytes)
   txPlain[0] = txTLVLen;
   uint16_t plainLen = txTLVLen + 1; // include length byte
-                                    
+
   LoRa.beginPacket();
   LoRa.write(receiverAddress);
   LoRa.write(senderAddress);
 
 #ifdef USE_CRYPTO
-  // Pad to 16 byte blocks with zero padding
-  uint8_t blocks = (plainLen + 15) / 16;
-  uint16_t cipherLen = blocks * 16;
-  memset(cipher, 0, cipherLen);
+  // PKCS#7 padding length
+  uint8_t padLen = 16 - (plainLen % 16);
+  if (padLen == 0) padLen = 16;  // always add padding
+  uint16_t cipherLen = plainLen + padLen;
 
-  for (uint8_t b = 0; b < blocks; ++b)
-  {
-    // encryptBlock(output, input)
-    aes128.encryptBlock(&cipher[b * 16], &txPlain[b * 16]);
+  // Fill plaintext buffer with padding
+  memcpy(cipher, txPlain, plainLen);
+  memset(cipher + plainLen, padLen, padLen);
+
+  // Encrypt each block
+  for (uint16_t b = 0; b < cipherLen; b += 16) {
+    aes128.encryptBlock(&cipher[b], &cipher[b]);
   }
-  LoRa.print((const char*)cipher);
+
+  // Send encrypted payload (binary safe)
+  LoRa.write(cipher, cipherLen);
 
 #ifdef VERBOSE
   Serial.println(F("LoRa: Transmitting AES packet... OK"));
-  Serial.print(F("> Packet Length: "));
+  Serial.print(F("Packet Length: "));
   Serial.print(cipherLen);
   Serial.println(F(" bytes"));
+
+  // Hex dump
+  Serial.print(F("Packet (hex): "));
+  for (uint16_t i = 0; i < cipherLen; i++) {
+    if (cipher[i] < 0x10) Serial.print('0');  // leading zero
+    Serial.print(cipher[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.println();
 #endif
 
 #else // no crypto
+  // Send plain payload (binary safe)
+  LoRa.write(txPlain, plainLen);
+
 #ifdef VERBOSE
   Serial.println(F("LoRa: Transmitting packet... OK"));
-  Serial.print(F("> Packet Length: "));
+  Serial.print(F("Packet Length: "));
   Serial.print(plainLen);
   Serial.println(F(" bytes"));
-  Serial.print(F("> Packet: "));
-  Serial.println((const char*)txPlain);
+
+  // Hex dump
+  Serial.print(F("Packet (hex): "));
+  for (uint16_t i = 0; i < plainLen; i++) {
+    if (txPlain[i] < 0x10) Serial.print('0');  // leading zero
+    Serial.print(txPlain[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.println();
 #endif
 
-  LoRa.print((const char*)txPlain);
-
 #endif // USE_CRYPTO
-  LoRa.endPacket();
+
+  if (LoRa.endPacket() == 0) {
+#ifdef VERBOSE
+    Serial.println(F("LoRa: Transmission failed"));
+#endif
+  }
 
 #ifdef VERBOSE
   // Print TLV summary for debugging
-  Serial.print(F("> TLV bytes: "));
+  Serial.print(F("TLV bytes: "));
   Serial.println(txTLVLen);
-  Serial.print(F("> Packet length (sent): "));
+  Serial.print(F("Packet length (sent): "));
 #ifdef USE_CRYPTO
-  Serial.println((int)((plainLen + 15) / 16 * 16));
+  Serial.println(cipherLen);
 #else
   Serial.println(plainLen);
 #endif
@@ -587,6 +614,26 @@ void sleepDevice()
 #else
   sleepDeep(DS_L);
 #endif
+}
+
+void printTLVDebug() {
+  Serial.println(F("TLV Packet:"));
+  for (uint8_t i = 1; i <= txTLVLen; ) {
+    uint8_t type = txPlain[i++];
+    uint8_t len  = txPlain[i++];
+    Serial.print(F("Type 0x"));
+    Serial.print(type, HEX);
+    Serial.print(F(" Len "));
+    Serial.print(len);
+    Serial.print(F(" Value: "));
+    for (uint8_t j = 0; j < len; j++) {
+      if (txPlain[i+j] < 0x10) Serial.print('0');
+      Serial.print(txPlain[i+j], HEX);
+      Serial.print(' ');
+    }
+    Serial.println();
+    i += len;
+  }
 }
 
 // -----------------------
@@ -780,7 +827,10 @@ void loop()
 #ifdef SENSOR_TYPE_bme680
   handleSensorBme680();
 #endif
+
   handleVcc();
+
+  // printTLVDebug();
 
   transmitPacket();
   sleepDevice();
